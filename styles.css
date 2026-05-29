@@ -785,3 +785,60 @@ input[type="file"]::file-selector-button {
   width: 100%;
   height: 48px;
 }
+
+.login-screen {
+  min-height: 100vh;
+  background: #050505;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.login-card {
+  width: 420px;
+  background: #0f0f14;
+  border: 1px solid #262626;
+  border-radius: 20px;
+  padding: 40px;
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.login-card h1 {
+  color: #fff;
+  margin: 0;
+}
+
+.login-card p {
+  color: #aaa;
+}
+
+.login-card input {
+  background: #000;
+  color: white;
+  border: 1px solid #333;
+  padding: 12px;
+  border-radius: 10px;
+}
+
+.login-card button {
+  background: #dc2626;
+  color: white;
+  border: none;
+  padding: 14px;
+  border-radius: 12px;
+  cursor: pointer;
+  font-weight: bold;
+}
+
+.logout-btn {
+  width: 100%;
+  margin-top: 15px;
+  padding: 12px;
+  background: #991b1b;
+  color: white;
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+}
