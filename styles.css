@@ -927,18 +927,24 @@ input[type="file"]::file-selector-button {
   }
 }
 
-/* Versão 2.2 - Correção definitiva dos ícones dos cards */
+/* Versão 2.2 - Correção final dos ícones dos cards */
 
 .stat-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 44px;
+  align-items: center;
   overflow: hidden;
-  padding-right: 72px;
-  position: relative;
+  padding: 20px;
 }
 
 .stat-card span {
-  position: absolute;
-  top: 50%;
-  right: 18px;
-  transform: translateY(-50%);
-  margin-left: 0;
+  position: static;
+  transform: none;
+  margin-left: 12px;
+}
+
+.stat-card strong {
+  font-size: clamp(20px, 1.5vw, 24px);
+  line-height: 1.1;
+  white-space: nowrap;
 }
