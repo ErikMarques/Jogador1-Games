@@ -927,33 +927,18 @@ input[type="file"]::file-selector-button {
   }
 }
 
-/* Versão 2.2 - Correções visuais da tabela e cards */
+/* Versão 2.2 - Correção definitiva dos ícones dos cards */
 
 .stat-card {
-  overflow: visible;
+  overflow: hidden;
+  padding-right: 72px;
+  position: relative;
 }
 
 .stat-card span {
-  margin-left: 12px;
-}
-
-.products-table {
-  min-width: 1250px;
-}
-
-.products-table th:nth-child(4),
-.products-table td:nth-child(4),
-.products-table th:nth-child(6),
-.products-table td:nth-child(6) {
-  min-width: 150px;
-}
-
-.products-table td:nth-child(4) input,
-.products-table td:nth-child(6) input {
-  min-width: 120px;
-  width: 120px;
-}
-
-.table-wrap {
-  overflow-x: auto;
+  position: absolute;
+  top: 50%;
+  right: 18px;
+  transform: translateY(-50%);
+  margin-left: 0;
 }
