@@ -383,7 +383,7 @@ export default function App() {
       return (
         <ModuleCard title="Produtos" subtitle="Cadastro, edição, imagem e controle de estoque.">
           <div className="module-actions">
-            <Button onClick={() => setNewProductOpen(true)}><Plus size={17} /> Cadastrar Produto</Button>
+            <button onClick={() => setNewProductOpen(true)}><Plus size={17} /> Cadastrar Produto</button>
           </div>
           <ProductsTable
             products={products}
@@ -448,7 +448,7 @@ export default function App() {
             <Input placeholder="Descrição" value={extraCost.descricao} onChange={(e) => setExtraCost({ ...extraCost, descricao: e.target.value })} />
             <Input type="number" placeholder="Valor" value={extraCost.valor} onChange={(e) => setExtraCost({ ...extraCost, valor: e.target.value })} />
             <Input type="date" value={extraCost.data} onChange={(e) => setExtraCost({ ...extraCost, data: e.target.value })} />
-            <Button onClick={addExtraCost}><Plus size={17} /></Button>
+            <button onClick={addExtraCost}><Plus size={17} /></button>
           </div>
           <SimpleTable headers={["Descrição", "Data", "Valor", ""]}>
             {extraCosts.map((cost) => (
@@ -520,7 +520,7 @@ export default function App() {
         <section className="main-section">
           <ModuleCard title="Produtos em Estoque" subtitle="Custos detalhados, miniaturas, venda esperada, lucro esperado e lucro real.">
             <div className="module-actions">
-              <Button onClick={() => setNewProductOpen(true)}><Plus size={17} /> Novo Produto</Button>
+              <button onClick={() => setNewProductOpen(true)}><Plus size={17} /> Novo Produto</button>
             </div>
             <ProductsTable
               products={products}
@@ -710,7 +710,7 @@ function ProductModal({ title, product, setProduct, onClose, onSave, saveText, i
               <strong className="green">{currency(profit)}</strong>
             </div>
 
-            <Button onClick={onSave} className="full-button"><Plus size={18} /> {saveText}</Button>
+            <button onClick={onSave} className="full-button"><Plus size={18} /> {saveText}</button>
           </div>
         </div>
       </div>
