@@ -948,3 +948,19 @@ input[type="file"]::file-selector-button {
   line-height: 1.1;
   white-space: nowrap;
 }
+
+/* Versão 2.2.1 - Campos maiores de venda */
+
+.products-table input {
+  min-width: 90px;
+}
+
+.products-table td:nth-child(5) input {
+  width: 140px !important;
+  min-width: 140px !important;
+}
+
+.products-table td:nth-child(7) input {
+  width: 140px !important;
+  min-width: 140px !important;
+}
