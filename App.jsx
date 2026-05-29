@@ -445,9 +445,9 @@ export default function App() {
       return (
         <ModuleCard title="Custos Extras" subtitle="Despesas operacionais fora do custo individual do produto.">
           <div className="extra-cost-form">
-            <Input placeholder="Descrição" value={extraCost.descricao} onChange={(e) => setExtraCost({ ...extraCost, descricao: e.target.value })} />
-            <Input type="number" placeholder="Valor" value={extraCost.valor} onChange={(e) => setExtraCost({ ...extraCost, valor: e.target.value })} />
-            <Input type="date" value={extraCost.data} onChange={(e) => setExtraCost({ ...extraCost, data: e.target.value })} />
+            <input placeholder="Descrição" value={extraCost.descricao} onChange={(e) => setExtraCost({ ...extraCost, descricao: e.target.value })} />
+            <input type="number" placeholder="Valor" value={extraCost.valor} onChange={(e) => setExtraCost({ ...extraCost, valor: e.target.value })} />
+            <input type="date" value={extraCost.data} onChange={(e) => setExtraCost({ ...extraCost, data: e.target.value })} />
             <button onClick={addExtraCost}><Plus size={17} /></button>
           </div>
           <SimpleTable headers={["Descrição", "Data", "Valor", ""]}>
@@ -673,32 +673,32 @@ function ProductModal({ title, product, setProduct, onClose, onSave, saveText, i
           <div className="modal-left">
             <FormSection title="Identificação">
               <div className="form-grid">
-                <Input value={product.nome} onChange={(e) => setProduct({ ...product, nome: e.target.value })} placeholder="Nome do produto" />
-                <Input value={product.sku} onChange={(e) => setProduct({ ...product, sku: e.target.value })} placeholder="SKU / Código interno" />
+                <input value={product.nome} onChange={(e) => setProduct({ ...product, nome: e.target.value })} placeholder="Nome do produto" />
+                <input value={product.sku} onChange={(e) => setProduct({ ...product, sku: e.target.value })} placeholder="SKU / Código interno" />
               </div>
             </FormSection>
 
             <FormSection title="Custos do produto">
               <div className="form-grid">
-                <Input type="number" value={product.compra} onChange={(e) => setProduct({ ...product, compra: e.target.value })} placeholder="Preço de compra" />
-                <Input type="number" value={product.chip} onChange={(e) => setProduct({ ...product, chip: e.target.value })} placeholder="Chip / desbloqueio" />
-                <Input type="number" value={product.frete} onChange={(e) => setProduct({ ...product, frete: e.target.value })} placeholder="Frete" />
-                <Input type="number" value={product.manutencao} onChange={(e) => setProduct({ ...product, manutencao: e.target.value })} placeholder="Manutenção" />
-                <Input type="number" value={product.outros} onChange={(e) => setProduct({ ...product, outros: e.target.value })} placeholder="Outros custos" />
+                <input type="number" value={product.compra} onChange={(e) => setProduct({ ...product, compra: e.target.value })} placeholder="Preço de compra" />
+                <input type="number" value={product.chip} onChange={(e) => setProduct({ ...product, chip: e.target.value })} placeholder="Chip / desbloqueio" />
+                <input type="number" value={product.frete} onChange={(e) => setProduct({ ...product, frete: e.target.value })} placeholder="Frete" />
+                <input type="number" value={product.manutencao} onChange={(e) => setProduct({ ...product, manutencao: e.target.value })} placeholder="Manutenção" />
+                <input type="number" value={product.outros} onChange={(e) => setProduct({ ...product, outros: e.target.value })} placeholder="Outros custos" />
               </div>
             </FormSection>
 
             <FormSection title="Venda">
               <div className="form-grid">
-                <Input type="number" value={product.vendaEsperada} onChange={(e) => setProduct({ ...product, vendaEsperada: e.target.value })} placeholder="Valor esperado de venda" />
-                {editing && <Input type="number" value={product.vendaReal} onChange={(e) => setProduct({ ...product, vendaReal: e.target.value })} placeholder="Venda real" />}
+                <input type="number" value={product.vendaEsperada} onChange={(e) => setProduct({ ...product, vendaEsperada: e.target.value })} placeholder="Valor esperado de venda" />
+                {editing && <input type="number" value={product.vendaReal} onChange={(e) => setProduct({ ...product, vendaReal: e.target.value })} placeholder="Venda real" />}
               </div>
             </FormSection>
           </div>
 
           <div className="modal-right">
             <FormSection title="Imagens">
-              <Input className="file-input" type="file" accept="image/*" multiple onChange={importImages} />
+              <input className="file-input" type="file" accept="image/*" multiple onChange={importImages} />
               <p className="muted">Você pode importar em etapas, até completar 6 imagens.</p>
               <ImagesGrid images={product.imagens} removeImage={removeImage} setExpandedImage={setExpandedImage} />
             </FormSection>
@@ -781,26 +781,26 @@ function ProductsTable({ products, updateProduct, sellProduct, editProduct, remo
                       {product.imagens?.[0] ? <img src={product.imagens[0]} alt={product.nome} /> : <ImagePlus />}
                     </button>
                     <div>
-                      <Input value={product.nome} onChange={(e) => updateProduct(product.id, "nome", e.target.value)} />
-                      <Input value={product.sku} onChange={(e) => updateProduct(product.id, "sku", e.target.value)} />
+                      <input value={product.nome} onChange={(e) => updateProduct(product.id, "nome", e.target.value)} />
+                      <input value={product.sku} onChange={(e) => updateProduct(product.id, "sku", e.target.value)} />
                     </div>
                   </div>
                 </td>
 
                 <td>
                   <div className="cost-grid">
-                    <Input type="number" value={product.compra} onChange={(e) => updateProduct(product.id, "compra", e.target.value)} />
-                    <Input type="number" value={product.chip} onChange={(e) => updateProduct(product.id, "chip", e.target.value)} />
-                    <Input type="number" value={product.frete} onChange={(e) => updateProduct(product.id, "frete", e.target.value)} />
-                    <Input type="number" value={product.manutencao} onChange={(e) => updateProduct(product.id, "manutencao", e.target.value)} />
-                    <Input type="number" value={product.outros} onChange={(e) => updateProduct(product.id, "outros", e.target.value)} />
+                    <input type="number" value={product.compra} onChange={(e) => updateProduct(product.id, "compra", e.target.value)} />
+                    <input type="number" value={product.chip} onChange={(e) => updateProduct(product.id, "chip", e.target.value)} />
+                    <input type="number" value={product.frete} onChange={(e) => updateProduct(product.id, "frete", e.target.value)} />
+                    <input type="number" value={product.manutencao} onChange={(e) => updateProduct(product.id, "manutencao", e.target.value)} />
+                    <input type="number" value={product.outros} onChange={(e) => updateProduct(product.id, "outros", e.target.value)} />
                   </div>
                 </td>
 
                 <td className="strong">{currency(calc.custoFinal)}</td>
-                <td><Input type="number" value={product.vendaEsperada} onChange={(e) => updateProduct(product.id, "vendaEsperada", e.target.value)} /></td>
+                <td><input type="number" value={product.vendaEsperada} onChange={(e) => updateProduct(product.id, "vendaEsperada", e.target.value)} /></td>
                 <td className="green strong">{currency(calc.lucroEsperado)}</td>
-                <td><Input type="number" value={product.vendaReal} onChange={(e) => updateProduct(product.id, "vendaReal", e.target.value)} placeholder="Após vender" /></td>
+                <td><input type="number" value={product.vendaReal} onChange={(e) => updateProduct(product.id, "vendaReal", e.target.value)} placeholder="Após vender" /></td>
                 <td className="green strong">{product.status === "Vendido" ? currency(calc.lucroReal) : "-"}</td>
                 <td><Status status={product.status} /></td>
                 <td>
