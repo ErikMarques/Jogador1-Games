@@ -1,4 +1,4 @@
-/* Jogador1 Games - v3.0 */
+/* Jogador1 Games - v3.1 */
 * { box-sizing: border-box; }
 html, body, #root { min-height: 100%; }
 body {
@@ -192,4 +192,75 @@ tr td:last-child { border-radius: 0 16px 16px 0; }
   body, .app, .content { background: #fff !important; color: #000 !important; }
   .module-card, .stat-card { box-shadow: none; border: 1px solid #ccc; color: #000; background: #fff; }
   .module-card *,.stat-card * { color: #000 !important; }
+}
+
+
+/* Jogador1 Games - Complementos v3.1 */
+.date-pill {
+  border: 1px solid rgba(255,255,255,.1);
+  background: rgba(0,0,0,.5);
+  color: #e5e7eb;
+}
+.products-table {
+  min-width: 1450px;
+}
+.form-grid.single {
+  grid-template-columns: 1fr;
+}
+.extra-selector {
+  margin-top: 14px;
+  display: grid;
+  gap: 10px;
+}
+.extra-selector-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #fff;
+  font-weight: 800;
+}
+.extra-selector-list {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.extra-chip {
+  background: rgba(255,255,255,.08);
+  border: 1px solid rgba(255,255,255,.12);
+  color: #e5e7eb;
+  padding: 8px 10px;
+  border-radius: 999px;
+  font-size: 13px;
+}
+.extra-chip.selected {
+  background: rgba(34,197,94,.14);
+  border-color: rgba(34,197,94,.35);
+  color: #86efac;
+}
+.calendar-modal {
+  width: min(720px, 100%);
+}
+.calendar-event-list {
+  display: grid;
+  gap: 12px;
+}
+.calendar-day {
+  padding: 14px;
+  border: 1px solid rgba(255,255,255,.1);
+  background: rgba(0,0,0,.35);
+  border-radius: 16px;
+}
+.calendar-day h3 {
+  margin: 0 0 10px;
+  color: #fff;
+}
+.calendar-day p {
+  margin: 6px 0;
+  color: #d4d4d8;
+}
+.stock-grid {
+  width: 130px;
+}
+@media print {
+  .calendar-modal, .modal-backdrop, .image-overlay { display: none !important; }
 }
