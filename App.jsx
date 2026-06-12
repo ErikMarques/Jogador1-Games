@@ -23,7 +23,7 @@ import {
   X,
 } from "lucide-react";
 
-const APP_VERSION = "3.1.1";
+const APP_VERSION = "3.1.2";
 const STORAGE_BUCKET = "produto-imagens";
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
@@ -226,6 +226,7 @@ export default function App() {
       vendaReal: p.venda_real ?? "",
       status: p.status || "Em estoque",
       statusRegistro: p.status_registro || "A",
+      statusVenda: p.status_venda || "A",
       estoqueMinimo: Number(p.estoque_minimo || 1),
       quantidade: Number(p.quantidade || 1),
       dataCompra: p.criado_em || "",
@@ -290,11 +291,12 @@ export default function App() {
 
   const activeProducts = useMemo(() => products.filter((p) => p.statusRegistro !== "X"), [products]);
   const stockProducts = useMemo(() => activeProducts.filter((p) => p.status !== "Vendido"), [activeProducts]);
-  const soldProducts = useMemo(() => activeProducts.filter((p) => p.status === "Vendido"), [activeProducts]);
+  const soldProducts = useMemo(() => activeProducts.filter((p) => p.status === "Vendido" && p.statusVenda !== "X"), [activeProducts]);
   const inactiveProducts = useMemo(() => products.filter((p) => p.statusRegistro === "X"), [products]);
+  const financialProducts = useMemo(() => activeProducts.filter((p) => p.status !== "Vendido" || p.statusVenda !== "X"), [activeProducts]);
 
   const summary = useMemo(() => {
-    return activeProducts.reduce((acc, p) => {
+    return financialProducts.reduce((acc, p) => {
       const calc = productMath(p);
       acc.capitalInvestido += calc.custoFinal;
       acc.lucroEsperado += calc.lucroEsperado;
@@ -308,7 +310,7 @@ export default function App() {
       acc.custosExtras += calc.custosExtras;
       return acc;
     }, { capitalInvestido: 0, lucroEsperado: 0, valorEstoque: 0, produtosEstoque: 0, produtosVendidos: 0, receitaReal: 0, lucroReal: 0, custoVendidos: 0, compra: 0, custosExtras: 0 });
-  }, [activeProducts]);
+  }, [financialProducts]);
 
   const totalExtraCosts = extraCosts.reduce((acc, item) => acc + Number(item.valor || 0), 0);
   const lowStockProducts = stockProducts.filter((p) => Number(p.quantidade || 0) <= Number(p.estoqueMinimo || 0));
@@ -332,7 +334,7 @@ export default function App() {
 
   const showStats = activeMenu === "Dashboard" || activeMenu === "Relatórios";
 
-  const calendarEvents = useMemo(() => buildCalendarEvents(activeProducts), [activeProducts]);
+  const calendarEvents = useMemo(() => buildCalendarEvents(financialProducts), [financialProducts]);
 
   function readImages(event, callback) {
     const files = Array.from(event.target.files || []);
@@ -450,8 +452,42 @@ export default function App() {
     setProducts((prev) => prev.map((p) => (p.id === id ? next : p)));
 
     if (supabase) {
-      await supabase.from("produtos").update({ status: "Vendido", venda_real: Number(next.vendaReal || 0), lucro_real: calc.lucroReal, data_venda: soldAt }).eq("id", id);
+      await supabase.from("produtos").update({ status: "Vendido", status_venda: "A", venda_real: Number(next.vendaReal || 0), lucro_real: calc.lucroReal, data_venda: soldAt }).eq("id", id);
     }
+  }
+
+
+  async function cancelSale(id) {
+    if (!permissions.canSell) return alert("Seu perfil não permite cancelar vendas.");
+
+    const target = products.find((p) => p.id === id);
+    if (!target) return;
+
+    const confirmCancel = window.confirm("Deseja cancelar esta venda? Ela não será somada no Dashboard, Relatórios, Financeiro e Calendário.");
+    if (!confirmCancel) return;
+
+    if (supabase) {
+      const { error } = await supabase
+        .from("produtos")
+        .update({
+          status_venda: "X",
+          status: "Em estoque",
+          venda_real: null,
+          lucro_real: null,
+          data_venda: null,
+        })
+        .eq("id", id);
+
+      if (error) return alert(`Erro ao cancelar venda: ${error.message}`);
+    }
+
+    setProducts((prev) =>
+      prev.map((p) =>
+        p.id === id
+          ? { ...p, statusVenda: "X", status: "Em estoque", vendaReal: "", dataVenda: "" }
+          : p
+      )
+    );
   }
 
   async function saveEdit() {
@@ -572,10 +608,25 @@ export default function App() {
     if (activeMenu === "Vendas") {
       return (
         <ModuleCard title="Vendas" subtitle="Produtos vendidos, valor realizado e lucro real.">
-          <SimpleTable headers={["Produto", "Data", "Venda real", "Custo", "Lucro real"]}>
+          <SimpleTable headers={["Produto", "Data", "Venda real", "Custo", "Lucro real", "Ações"]}>
             {soldProducts.map((p) => {
               const calc = productMath(p);
-              return <tr key={p.id}><td>{p.nome}</td><td>{formatDateBR(p.dataVenda)}</td><td className="green">{currency(p.vendaReal)}</td><td>{currency(calc.custoFinal)}</td><td className="green strong">{currency(calc.lucroReal)}</td></tr>;
+              return (
+                <tr key={p.id}>
+                  <td>{p.nome}</td>
+                  <td>{formatDateBR(p.dataVenda)}</td>
+                  <td className="green">{currency(p.vendaReal)}</td>
+                  <td>{currency(calc.custoFinal)}</td>
+                  <td className="green strong">{currency(calc.lucroReal)}</td>
+                  <td>
+                    {permissions.canSell && (
+                      <button className="icon-btn danger" title="Cancelar venda" onClick={() => cancelSale(p.id)}>
+                        <X size={18} />
+                      </button>
+                    )}
+                  </td>
+                </tr>
+              );
             })}
           </SimpleTable>
         </ModuleCard>
