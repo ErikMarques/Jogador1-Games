@@ -1,4 +1,4 @@
-/* Jogador1 Games - v4.0 */
+/* Jogador1 Games - v4.0.2 */
 * { box-sizing: border-box; }
 html, body, #root { min-height: 100%; }
 body {
@@ -928,6 +928,329 @@ tr td:last-child { border-radius: 0 16px 16px 0; }
     grid-template-columns: 1fr;
   }
 
+  .background-animations {
+    display: none;
+  }
+}
+
+
+/* Jogador1 Games - v4.0.2 */
+/* Sprites/mascotes próprios para animações de fundo */
+
+.background-animations {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+  overflow: hidden;
+}
+
+.layout,
+.modal-backdrop,
+.image-overlay {
+  position: relative;
+  z-index: 2;
+}
+
+.mascot {
+  position: absolute;
+  display: block;
+  opacity: 0;
+  filter:
+    drop-shadow(0 0 10px rgba(248, 113, 113, 0.45))
+    drop-shadow(0 0 18px rgba(34, 197, 94, 0.10));
+  transform: translate3d(0, 0, 0);
+}
+
+.background-animations.discreto .mascot {
+  animation-duration: 16s;
+}
+
+.background-animations.gamer .mascot {
+  animation-duration: 9s;
+}
+
+/* Controle pixelado */
+.mascot-controller {
+  width: 58px;
+  height: 38px;
+  top: 18%;
+  left: -80px;
+  animation: mascot-controller-run linear infinite;
+}
+
+.controller-body {
+  position: absolute;
+  inset: 6px 2px 2px;
+  border-radius: 14px 14px 18px 18px;
+  background: linear-gradient(135deg, #f8fafc, #d1d5db);
+  border: 3px solid #7f1d1d;
+  box-shadow: inset 0 -5px 0 rgba(0,0,0,.14);
+}
+
+.controller-pad {
+  position: absolute;
+  width: 13px;
+  height: 13px;
+  left: 14px;
+  top: 16px;
+  background:
+    linear-gradient(#111 0 0) center/100% 4px no-repeat,
+    linear-gradient(#111 0 0) center/4px 100% no-repeat;
+}
+
+.controller-buttons {
+  position: absolute;
+  width: 18px;
+  height: 9px;
+  right: 12px;
+  top: 17px;
+  background:
+    radial-gradient(circle at 4px 5px, #ef4444 0 4px, transparent 5px),
+    radial-gradient(circle at 14px 5px, #22c55e 0 4px, transparent 5px);
+}
+
+/* Orb elétrica */
+.mascot-orb {
+  width: 48px;
+  height: 48px;
+  top: 50%;
+  right: -70px;
+  animation: mascot-orb-flight linear infinite 2.5s;
+}
+
+.orb-core {
+  position: absolute;
+  inset: 7px;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 35% 30%, #fef3c7 0 12%, #facc15 18%, #ef4444 55%, #7f1d1d 100%);
+  border: 3px solid #fbbf24;
+}
+
+.orb-spark {
+  position: absolute;
+  display: block;
+  width: 18px;
+  height: 5px;
+  background: #facc15;
+  border-radius: 99px;
+  box-shadow: 0 0 12px #facc15;
+}
+
+.spark-one {
+  top: 6px;
+  right: -6px;
+  transform: rotate(-30deg);
+}
+
+.spark-two {
+  bottom: 4px;
+  left: -4px;
+  transform: rotate(35deg);
+}
+
+/* Dragão pixel-art genérico */
+.mascot-dragon {
+  width: 74px;
+  height: 50px;
+  bottom: 15%;
+  left: -90px;
+  animation: mascot-dragon-fly linear infinite 5s;
+}
+
+.dragon-head {
+  position: absolute;
+  width: 34px;
+  height: 28px;
+  right: 10px;
+  top: 11px;
+  background: #22c55e;
+  border: 3px solid #14532d;
+  border-radius: 9px 13px 8px 8px;
+  box-shadow: -18px 10px 0 #16a34a;
+}
+
+.dragon-head::before {
+  content: "";
+  position: absolute;
+  right: 3px;
+  top: 6px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #020617;
+}
+
+.dragon-wing {
+  position: absolute;
+  left: 5px;
+  top: 2px;
+  width: 32px;
+  height: 26px;
+  background: #15803d;
+  clip-path: polygon(0 100%, 48% 0, 100% 100%);
+  opacity: .95;
+}
+
+.dragon-fire {
+  position: absolute;
+  right: -16px;
+  top: 18px;
+  width: 24px;
+  height: 12px;
+  background: linear-gradient(90deg, #f97316, #facc15, transparent);
+  border-radius: 999px;
+  box-shadow: 0 0 16px rgba(249, 115, 22, .8);
+}
+
+/* Cartucho retrô */
+.mascot-cart {
+  width: 44px;
+  height: 54px;
+  top: 72%;
+  right: -70px;
+  animation: mascot-cart-slide linear infinite 7s;
+}
+
+.cart-body {
+  position: absolute;
+  inset: 0;
+  background: #1f2937;
+  border: 3px solid #ef4444;
+  border-radius: 8px;
+  box-shadow: inset 0 -8px 0 rgba(0,0,0,.25);
+}
+
+.cart-label {
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  top: 12px;
+  height: 18px;
+  border-radius: 4px;
+  background: linear-gradient(90deg, #ef4444, #f97316);
+}
+
+/* Moeda gamer */
+.mascot-coin {
+  width: 34px;
+  height: 34px;
+  top: 30%;
+  left: 10%;
+  animation: mascot-coin-pop linear infinite 3s;
+}
+
+.mascot-coin i {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #fef3c7 0 12%, #facc15 20%, #d97706 85%);
+  border: 3px solid #f59e0b;
+  box-shadow: 0 0 18px rgba(250, 204, 21, .35);
+}
+
+/* Estrela pixelada */
+.mascot-star-pixel {
+  width: 42px;
+  height: 42px;
+  top: 8%;
+  right: 15%;
+  animation: mascot-star-drop linear infinite 4.5s;
+}
+
+.mascot-star-pixel i {
+  position: absolute;
+  inset: 0;
+  background: #facc15;
+  clip-path: polygon(50% 0, 62% 32%, 100% 32%, 69% 54%, 82% 100%, 50% 73%, 18% 100%, 31% 54%, 0 32%, 38% 32%);
+  filter: drop-shadow(0 0 10px rgba(250, 204, 21, .8));
+}
+
+/* Animações */
+@keyframes mascot-controller-run {
+  0%, 7% { transform: translateX(0) translateY(0) rotate(-8deg); opacity: 0; }
+  10% { opacity: .55; }
+  26% { transform: translateX(28vw) translateY(-28px) rotate(8deg); opacity: .78; }
+  44% { transform: translateX(54vw) translateY(18px) rotate(-10deg); opacity: .72; }
+  60% { transform: translateX(78vw) translateY(-12px) rotate(6deg); opacity: .58; }
+  70%, 100% { transform: translateX(110vw) translateY(0) rotate(10deg); opacity: 0; }
+}
+
+@keyframes mascot-orb-flight {
+  0%, 16% { transform: translateX(0) translateY(0) scale(.86); opacity: 0; }
+  20% { opacity: .65; }
+  38% { transform: translateX(-28vw) translateY(-16px) scale(1.05); opacity: .85; }
+  55% { transform: translateX(-58vw) translateY(18px) scale(.95); opacity: .7; }
+  68%, 100% { transform: translateX(-110vw) translateY(-8px) scale(.82); opacity: 0; }
+}
+
+@keyframes mascot-dragon-fly {
+  0%, 20% { transform: translateX(0) translateY(0) scale(.9); opacity: 0; }
+  25% { opacity: .62; }
+  45% { transform: translateX(35vw) translateY(-18px) scale(1.02); opacity: .8; }
+  63% { transform: translateX(70vw) translateY(12px) scale(.98); opacity: .62; }
+  75%, 100% { transform: translateX(112vw) translateY(-16px) scale(.9); opacity: 0; }
+}
+
+@keyframes mascot-cart-slide {
+  0%, 28% { transform: translateX(0) rotate(0deg); opacity: 0; }
+  34% { opacity: .56; }
+  52% { transform: translateX(-40vw) rotate(-8deg); opacity: .76; }
+  70% { transform: translateX(-78vw) rotate(8deg); opacity: .55; }
+  82%, 100% { transform: translateX(-112vw) rotate(0deg); opacity: 0; }
+}
+
+@keyframes mascot-coin-pop {
+  0%, 40% { transform: translateY(0) scale(.4) rotateY(0deg); opacity: 0; }
+  46% { opacity: .65; }
+  58% { transform: translateY(-72px) scale(1) rotateY(180deg); opacity: .85; }
+  72%, 100% { transform: translateY(-120px) scale(.6) rotateY(360deg); opacity: 0; }
+}
+
+@keyframes mascot-star-drop {
+  0%, 38% { transform: translateY(-60px) rotate(0deg) scale(.5); opacity: 0; }
+  45% { opacity: .7; }
+  60% { transform: translateY(55px) rotate(180deg) scale(1.05); opacity: .85; }
+  78%, 100% { transform: translateY(180px) rotate(360deg) scale(.65); opacity: 0; }
+}
+
+.background-animations.gamer .mascot {
+  filter:
+    drop-shadow(0 0 12px rgba(248, 113, 113, 0.62))
+    drop-shadow(0 0 18px rgba(250, 204, 21, 0.24));
+}
+
+.background-animations.gamer .mascot-controller { animation-delay: 0s; }
+.background-animations.gamer .mascot-orb { animation-delay: 1.2s; }
+.background-animations.gamer .mascot-dragon { animation-delay: 2.4s; }
+.background-animations.gamer .mascot-cart { animation-delay: 3.4s; }
+
+.background-animations.discreto .mascot-coin,
+.background-animations.discreto .mascot-star-pixel {
+  display: none;
+}
+
+@media (max-width: 980px) {
+  .background-animations.discreto .mascot,
+  .background-animations.gamer .mascot {
+    transform-origin: center;
+  }
+
+  .mascot-controller,
+  .mascot-dragon {
+    scale: .78;
+  }
+
+  .mascot-orb,
+  .mascot-cart,
+  .mascot-coin,
+  .mascot-star-pixel {
+    scale: .72;
+  }
+}
+
+@media (max-width: 680px) {
   .background-animations {
     display: none;
   }
