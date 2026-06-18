@@ -2,6 +2,8 @@ import React, { useEffect, useMemo, useState } from "react";
 import { createClient } from "@supabase/supabase-js";
 import {
   BarChart3,
+  Bell,
+  CheckCircle,
   Boxes,
   CalendarDays,
   DollarSign,
@@ -23,7 +25,7 @@ import {
   X,
 } from "lucide-react";
 
-const APP_VERSION = "3.1.6";
+const APP_VERSION = "4.0";
 const STORAGE_BUCKET = "produto-imagens";
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
@@ -65,6 +67,25 @@ function formatDateBR(value) {
   if (Number.isNaN(d.getTime())) return value;
   return d.toLocaleDateString("pt-BR");
 }
+
+function monthKeyFromValue(value) {
+  if (!value) return "";
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return "";
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+}
+
+function currentMonthKey() {
+  return monthKeyFromValue(new Date());
+}
+
+function monthLabelFromKey(key) {
+  if (!key) return "";
+  const [year, month] = key.split("-").map(Number);
+  const d = new Date(year, month - 1, 1);
+  return d.toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
+}
+
 
 function currentMonthLabel() {
   const label = new Date().toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
@@ -116,6 +137,7 @@ export default function App() {
   const [expandedImage, setExpandedImage] = useState(null);
   const [versionOpen, setVersionOpen] = useState(false);
   const [calendarOpen, setCalendarOpen] = useState(false);
+  const [alertsOpen, setAlertsOpen] = useState(false);
   const [syncMessage, setSyncMessage] = useState("Aguardando conexão com Supabase...");
   const [syncing, setSyncing] = useState(false);
 
@@ -127,7 +149,12 @@ export default function App() {
   const [loadingAuth, setLoadingAuth] = useState(true);
   const [authError, setAuthError] = useState("");
 
-  const [extraCost, setExtraCost] = useState({ descricao: "", valor: "", data: "" });
+  const [extraCost, setExtraCost] = useState({ descricao: "", valor: "", data: "", estoqueAtual: "", estoqueMinimo: "" });
+  const [animationMode, setAnimationMode] = useState(() => localStorage.getItem("j1_animation_mode") || "discreto");
+  const [seenAlertKeys, setSeenAlertKeys] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("j1_seen_alerts") || "[]"); } catch { return []; }
+  });
+  const [monthAckKey, setMonthAckKey] = useState(() => localStorage.getItem("j1_month_ack") || currentMonthKey());
   const [extraCosts, setExtraCosts] = useState([]);
 
   const permissions = permissionsByRole[profile?.perfil || "visualizacao"] || permissionsByRole.visualizacao;
@@ -191,7 +218,7 @@ export default function App() {
     if (!supabase) return;
     const { data } = await supabase.from("custos_extras").select("*").order("criado_em", { ascending: false });
     if (data) {
-      setExtraCosts(data.map((c) => ({ id: c.id, descricao: c.descricao, valor: Number(c.valor || 0), data: c.criado_em ? formatDateBR(c.criado_em) : "" })));
+      setExtraCosts(data.map((c) => ({ id: c.id, descricao: c.descricao, valor: Number(c.valor || 0), data: c.criado_em ? formatDateBR(c.criado_em) : "", estoqueAtual: Number(c.estoque_atual || 0), estoqueMinimo: Number(c.estoque_minimo || 0) })));
     }
   }
 
@@ -277,16 +304,67 @@ export default function App() {
 
   async function saveProductCosts(productId, costs) {
     if (!supabase) return;
+
+    const { data: oldRows } = await supabase
+      .from("produto_custos_extras")
+      .select("custo_extra_id")
+      .eq("produto_id", productId);
+
+    const previousIds = (oldRows || []).map((row) => row.custo_extra_id).filter(Boolean);
+    const nextIds = (costs || []).map((cost) => cost.custo_extra_id || cost.id).filter(Boolean);
+
+    const addedIds = nextIds.filter((id) => !previousIds.includes(id));
+    const removedIds = previousIds.filter((id) => !nextIds.includes(id));
+
+    if (addedIds.length) {
+      const { data: stockRows } = await supabase
+        .from("custos_extras")
+        .select("id, descricao, estoque_atual")
+        .in("id", addedIds);
+
+      const noStock = (stockRows || []).find((item) => Number(item.estoque_atual || 0) <= 0);
+      if (noStock) {
+        throw new Error(`Estoque indisponível para o custo extra: ${noStock.descricao}`);
+      }
+
+      for (const id of addedIds) {
+        const item = (stockRows || []).find((row) => row.id === id);
+        await supabase
+          .from("custos_extras")
+          .update({ estoque_atual: Math.max(0, Number(item?.estoque_atual || 0) - 1) })
+          .eq("id", id);
+      }
+    }
+
+    if (removedIds.length) {
+      const { data: stockRows } = await supabase
+        .from("custos_extras")
+        .select("id, estoque_atual")
+        .in("id", removedIds);
+
+      for (const id of removedIds) {
+        const item = (stockRows || []).find((row) => row.id === id);
+        await supabase
+          .from("custos_extras")
+          .update({ estoque_atual: Number(item?.estoque_atual || 0) + 1 })
+          .eq("id", id);
+      }
+    }
+
     await supabase.from("produto_custos_extras").delete().eq("produto_id", productId);
-    if (!costs?.length) return;
-    await supabase.from("produto_custos_extras").insert(
-      costs.map((cost) => ({
-        produto_id: productId,
-        custo_extra_id: cost.custo_extra_id || cost.id || null,
-        descricao: cost.descricao,
-        valor: Number(cost.valor || 0),
-      }))
-    );
+
+    if (costs?.length) {
+      await supabase.from("produto_custos_extras").insert(
+        costs.map((cost) => ({
+          produto_id: productId,
+          custo_extra_id: cost.custo_extra_id || cost.id || null,
+          descricao: cost.descricao,
+          valor: Number(cost.valor || 0),
+        }))
+      );
+    }
+
+    await loadExtraCosts();
   }
 
   const activeProducts = useMemo(() => products.filter((p) => p.statusRegistro !== "X"), [products]);
@@ -294,9 +372,13 @@ export default function App() {
   const soldProducts = useMemo(() => activeProducts.filter((p) => p.status === "Vendido" && p.statusVenda !== "X"), [activeProducts]);
   const inactiveProducts = useMemo(() => products.filter((p) => p.statusRegistro === "X"), [products]);
   const financialProducts = useMemo(() => activeProducts.filter((p) => p.status !== "Vendido" || p.statusVenda !== "X"), [activeProducts]);
+  const monthlyFinancialProducts = useMemo(() => financialProducts.filter((p) => {
+    const referenceDate = p.status === "Vendido" ? p.dataVenda : p.dataCompra;
+    return monthKeyFromValue(referenceDate) === currentMonthKey();
+  }), [financialProducts]);
 
   const summary = useMemo(() => {
-    return financialProducts.reduce((acc, p) => {
+    return monthlyFinancialProducts.reduce((acc, p) => {
       const calc = productMath(p);
       acc.capitalInvestido += calc.custoFinal;
       acc.lucroEsperado += calc.lucroEsperado;
@@ -310,13 +392,94 @@ export default function App() {
       acc.custosExtras += calc.custosExtras;
       return acc;
     }, { capitalInvestido: 0, lucroEsperado: 0, valorEstoque: 0, produtosEstoque: 0, produtosVendidos: 0, receitaReal: 0, lucroReal: 0, custoVendidos: 0, compra: 0, custosExtras: 0 });
-  }, [financialProducts]);
+  }, [monthlyFinancialProducts]);
 
   const totalExtraCosts = extraCosts.reduce((acc, item) => acc + Number(item.valor || 0), 0);
   const roiPercent = summary.capitalInvestido ? (summary.lucroReal / summary.capitalInvestido) * 100 : 0;
-  const lowStockProducts = stockProducts.filter((p) => Number(p.quantidade || 0) <= Number(p.estoqueMinimo || 0));
+  
+  const monthlyHistory = useMemo(() => {
+    const map = new Map();
 
-  const costDistribution = [
+    for (const p of financialProducts) {
+      const key = monthKeyFromValue(p.status === "Vendido" ? p.dataVenda : p.dataCompra);
+      if (!key) continue;
+
+      if (!map.has(key)) {
+        map.set(key, {
+          key,
+          label: monthLabelFromKey(key),
+          capital: 0,
+          faturamento: 0,
+          lucroReal: 0,
+          vendidos: 0,
+          roi: 0,
+        });
+      }
+
+      const row = map.get(key);
+      const calc = productMath(p);
+      row.capital += calc.custoFinal;
+
+      if (p.status === "Vendido" && p.statusVenda !== "X") {
+        row.faturamento += Number(p.vendaReal || 0);
+        row.lucroReal += calc.lucroReal;
+        row.vendidos += 1;
+      }
+    }
+
+    return Array.from(map.values())
+      .map((row) => ({ ...row, roi: row.capital ? (row.lucroReal / row.capital) * 100 : 0 }))
+      .sort((a, b) => b.key.localeCompare(a.key));
+  }, [financialProducts]);
+
+const lowStockProducts = stockProducts.filter((p) => Number(p.quantidade || 0) <= Number(p.estoqueMinimo || 0));
+
+  
+  const stockAlerts = useMemo(() => {
+    return extraCosts
+      .filter((cost) => Number(cost.estoqueAtual || 0) <= Number(cost.estoqueMinimo || 0))
+      .map((cost) => ({
+        key: `extra-stock-${cost.id}`,
+        type: "stock",
+        title: `${cost.descricao} está com estoque baixo`,
+        message: `Estoque atual: ${Number(cost.estoqueAtual || 0)} | Mínimo: ${Number(cost.estoqueMinimo || 0)}`,
+      }));
+  }, [extraCosts]);
+
+  const monthChangeAlert = useMemo(() => {
+    const actual = currentMonthKey();
+    if (!monthAckKey || monthAckKey === actual) return null;
+    return {
+      key: `month-change-${actual}`,
+      type: "month",
+      title: "Mês vigente alterado",
+      message: "Verifique seu lucro e valores no histórico de vendas mensal.",
+    };
+  }, [monthAckKey]);
+
+  const systemAlerts = useMemo(() => {
+    return [...(monthChangeAlert ? [monthChangeAlert] : []), ...stockAlerts];
+  }, [monthChangeAlert, stockAlerts]);
+
+  const unreadAlerts = useMemo(() => {
+    return systemAlerts.filter((alert) => !seenAlertKeys.includes(alert.key));
+  }, [systemAlerts, seenAlertKeys]);
+
+  function markAlertAsSeen(key) {
+    setSeenAlertKeys((prev) => prev.includes(key) ? prev : [...prev, key]);
+    if (key.startsWith("month-change-")) {
+      localStorage.setItem("j1_month_ack", currentMonthKey());
+      setMonthAckKey(currentMonthKey());
+    }
+  }
+
+  function markAllAlertsAsSeen() {
+    setSeenAlertKeys((prev) => Array.from(new Set([...prev, ...systemAlerts.map((alert) => alert.key)])));
+    localStorage.setItem("j1_month_ack", currentMonthKey());
+    setMonthAckKey(currentMonthKey());
+  }
+
+const costDistribution = [
     ["Compras", summary.compra, "bar-white"],
     ["Custos agregados", summary.custosExtras, "bar-red"],
   ];
@@ -581,11 +744,30 @@ export default function App() {
     if (!extraCost.descricao || !extraCost.valor) return;
 
     if (supabase) {
-      const { data } = await supabase.from("custos_extras").insert({ descricao: extraCost.descricao, valor: Number(extraCost.valor || 0) }).select().single();
-      if (data) setExtraCosts((prev) => [{ id: data.id, descricao: data.descricao, valor: Number(data.valor || 0), data: data.criado_em ? formatDateBR(data.criado_em) : "Hoje" }, ...prev]);
+      const { data } = await supabase
+        .from("custos_extras")
+        .insert({
+          descricao: extraCost.descricao,
+          valor: Number(extraCost.valor || 0),
+          estoque_atual: Number(extraCost.estoqueAtual || 0),
+          estoque_minimo: Number(extraCost.estoqueMinimo || 0),
+        })
+        .select()
+        .single();
+
+      if (data) {
+        setExtraCosts((prev) => [{
+          id: data.id,
+          descricao: data.descricao,
+          valor: Number(data.valor || 0),
+          data: data.criado_em ? formatDateBR(data.criado_em) : "Hoje",
+          estoqueAtual: Number(data.estoque_atual || 0),
+          estoqueMinimo: Number(data.estoque_minimo || 0),
+        }, ...prev]);
+      }
     }
 
-    setExtraCost({ descricao: "", valor: "", data: "" });
+    setExtraCost({ descricao: "", valor: "", data: "", estoqueAtual: "", estoqueMinimo: "" });
   }
 
   function exportBackup() {
@@ -670,15 +852,26 @@ export default function App() {
 
     if (activeMenu === "Custos Extras") {
       return (
-        <ModuleCard title="Custos Extras" subtitle="Cadastre itens que podem ser agregados ao custo dos produtos.">
-          <div className="extra-cost-form">
+        <ModuleCard title="Custos Extras" subtitle="Cadastre itens agregáveis ao custo dos produtos com controle de estoque.">
+          <div className="extra-cost-form extra-cost-form-v4">
             <input placeholder="Descrição. Ex: Chip, Película, Frete" value={extraCost.descricao} onChange={(e) => setExtraCost({ ...extraCost, descricao: e.target.value })} />
             <input type="number" placeholder="Valor" value={extraCost.valor} onChange={(e) => setExtraCost({ ...extraCost, valor: e.target.value })} />
+            <input type="number" placeholder="Estoque atual" value={extraCost.estoqueAtual} onChange={(e) => setExtraCost({ ...extraCost, estoqueAtual: e.target.value })} />
+            <input type="number" placeholder="Estoque mínimo" value={extraCost.estoqueMinimo} onChange={(e) => setExtraCost({ ...extraCost, estoqueMinimo: e.target.value })} />
             <input type="date" value={extraCost.data} onChange={(e) => setExtraCost({ ...extraCost, data: e.target.value })} />
             <button onClick={addExtraCost}><Plus size={17} /></button>
           </div>
-          <SimpleTable headers={["Descrição", "Data", "Valor", ""]}>
-            {extraCosts.map((cost) => <tr key={cost.id}><td>{cost.descricao}</td><td>{cost.data}</td><td className="red">{currency(cost.valor)}</td><td className="right"><button className="icon-btn danger" onClick={() => removeExtraCost(cost.id)}><Trash2 size={18} /></button></td></tr>)}
+          <SimpleTable headers={["Descrição", "Data", "Valor", "Estoque atual", "Estoque mínimo", ""]}>
+            {extraCosts.map((cost) => (
+              <tr key={cost.id} className={Number(cost.estoqueAtual || 0) <= Number(cost.estoqueMinimo || 0) ? "low-stock-row" : ""}>
+                <td>{cost.descricao}</td>
+                <td>{cost.data}</td>
+                <td className="red">{currency(cost.valor)}</td>
+                <td className="green strong">{Number(cost.estoqueAtual || 0)}</td>
+                <td>{Number(cost.estoqueMinimo || 0)}</td>
+                <td className="right"><button className="icon-btn danger" onClick={() => removeExtraCost(cost.id)}><Trash2 size={18} /></button></td>
+              </tr>
+            ))}
           </SimpleTable>
         </ModuleCard>
       );
@@ -693,7 +886,7 @@ export default function App() {
             <CostDistribution costs={costDistribution} summary={summary} />
           </ModuleCard>
           <ModuleCard title="Gráficos financeiros" subtitle="Indicadores visuais"><FinanceCharts summary={summary} /></ModuleCard>
-          <ModuleCard title="Movimentações por data" subtitle="Compras e vendas registradas"><CalendarEventList events={calendarEvents} /></ModuleCard>
+          <ModuleCard title="Histórico mensal" subtitle="Fechamentos por mês"><MonthlyHistory data={monthlyHistory} /></ModuleCard><ModuleCard title="Movimentações por data" subtitle="Compras e vendas registradas"><CalendarEventList events={calendarEvents} /></ModuleCard>
         </div>
       );
     }
@@ -709,23 +902,34 @@ export default function App() {
     }
 
     if (activeMenu === "Manutenção") {
-      return <div className="maintenance-grid"><ModuleCard title="Produtos inativos" subtitle="Produtos com status de registro X."><SimpleTable headers={["Produto", "SKU", "Status", "Ação"]}>{inactiveProducts.map((p) => <tr key={p.id}><td>{p.nome}</td><td>{p.sku}</td><td>X</td><td><button onClick={() => restoreProduct(p.id)}>Restaurar</button></td></tr>)}</SimpleTable></ModuleCard></div>;
+      return (
+        <div className="maintenance-grid">
+          <ModuleCard title="Configurações visuais" subtitle="Controle das animações de fundo.">
+            <div className="settings-row">
+              <label>Animações de fundo</label>
+              <select value={animationMode} onChange={(e) => setAnimationMode(e.target.value)}>
+                <option value="desativado">Desativado</option>
+                <option value="discreto">Discreto</option>
+                <option value="gamer">Gamer</option>
+              </select>
+            </div>
+          </ModuleCard>
+
+          <ModuleCard title="Produtos inativos" subtitle="Produtos com status de registro X.">
+            <SimpleTable headers={["Produto", "SKU", "Status", "Ação"]}>{inactiveProducts.map((p) => <tr key={p.id}><td>{p.nome}</td><td>{p.sku}</td><td>X</td><td><button onClick={() => restoreProduct(p.id)}>Restaurar</button></td></tr>)}</SimpleTable>
+          </ModuleCard>
+        </div>
+      );
     }
 
     return (
-      <div className="dashboard-grid">
-        <section className="main-section">
-          <ModuleCard title="Alertas de estoque baixo" subtitle="Produtos que precisam de atenção."><LowStockList products={lowStockProducts} /></ModuleCard>
-          <ModuleCard title="Produtos em Estoque" subtitle="Custos detalhados, miniaturas, venda esperada, lucro esperado e lucro real.">
-            <div className="module-actions">{permissions.canCreate && <button onClick={() => setNewProductOpen(true)}><Plus size={17} /> Novo Produto</button>}</div>
-            <ProductsTable products={stockProducts} updateProduct={updateProduct} sellProduct={sellProduct} editProduct={setEditingProduct} removeProduct={removeProduct} setExpandedImage={setExpandedImage} permissions={permissions} />
-          </ModuleCard>
-          <div className="two-columns"><CostDistribution costs={costDistribution} summary={summary} /><RecentSales products={soldProducts} /></div>
-        </section>
-        <aside className="side-section"><FinancialSummary summary={summary} /><ModuleCard title="Resumo do menu" subtitle="Rotina ativa"><p className="white strong">Menu ativo: {activeMenu}</p><p className="muted">Perfil: {profile?.perfil}</p><p className="muted">Supabase: {syncing ? "sincronizando..." : syncMessage}</p></ModuleCard></aside>
+      <div className="dashboard-sales-management">
+        <ModuleCard title="Gerenciamento de Vendas" subtitle="Produtos disponíveis para venda, custos, preço esperado e lucro.">
+          <div className="module-actions dashboard-sales-actions">{permissions.canCreate && <button onClick={() => setNewProductOpen(true)}><Plus size={17} /> Novo Produto</button>}</div>
+          <ProductsTable products={stockProducts} updateProduct={updateProduct} sellProduct={sellProduct} editProduct={setEditingProduct} removeProduct={removeProduct} setExpandedImage={setExpandedImage} permissions={permissions} />
+        </ModuleCard>
       </div>
-    );
-  }
+    );  }
 
   if (loadingAuth) return <div className="login-screen"><div className="login-card"><h1>Jogador1 Games</h1><p>Carregando sessão...</p></div></div>;
 
@@ -747,8 +951,10 @@ export default function App() {
 
   return (
     <div className="app">
+      <BackgroundAnimations mode={animationMode} />
       {expandedImage && <div className="image-overlay" onClick={() => setExpandedImage(null)}><img src={expandedImage} alt="Produto ampliado" /></div>}
       {calendarOpen && <CalendarModal events={calendarEvents} onClose={() => setCalendarOpen(false)} />}
+      {alertsOpen && <AlertsModal alerts={systemAlerts} unreadKeys={unreadAlerts.map((alert) => alert.key)} onClose={() => setAlertsOpen(false)} onMarkSeen={markAlertAsSeen} onMarkAll={markAllAlertsAsSeen} />}
       {versionOpen && <VersionModal onClose={() => setVersionOpen(false)} />}
 
       {newProductOpen && <ProductModal title="Cadastrar novo produto" product={newProduct} setProduct={setNewProduct} onClose={() => setNewProductOpen(false)} onSave={addProduct} saveText="Adicionar ao estoque" importImages={importNewImages} removeImage={(index) => setNewProduct((prev) => ({ ...prev, imagens: prev.imagens.filter((_, i) => i !== index) }))} setExpandedImage={setExpandedImage} extraCosts={extraCosts} />}
@@ -766,7 +972,7 @@ export default function App() {
         <main className="content">
           <header className="topbar">
             <div className="topbar-title"><div className="topbar-icon"><LayoutDashboard size={24} /></div><div><h2>{activeMenu}</h2><p>Rotina ativa do sistema Jogador1 Games.</p><small>{syncing ? "Sincronizando..." : syncMessage}</small></div></div>
-            <div className="topbar-actions"><button className="date-pill" onClick={() => setCalendarOpen(true)}><CalendarDays size={17} /> {currentMonthLabel()}</button><div className="capital-pill"><p>Capital total</p><strong>{currency(summary.capitalInvestido)}</strong></div></div>
+            <div className="topbar-actions"><button className={unreadAlerts.length ? "alert-bell has-alerts" : "alert-bell"} onClick={() => setAlertsOpen(true)}><Bell size={19} />{unreadAlerts.length > 0 && <span>{unreadAlerts.length}</span>}</button><button className="date-pill" onClick={() => setCalendarOpen(true)}><CalendarDays size={17} /> {currentMonthLabel()}</button><div className="capital-pill"><p>Capital total</p><strong>{currency(summary.capitalInvestido)}</strong></div></div>
           </header>
 
           {showStats && <section className="stats"><Stat icon={Wallet} title="Capital Investido" value={currency(summary.capitalInvestido)} subtitle="Total aplicado" color="red" /><Stat icon={Boxes} title="Valor em Estoque" value={currency(summary.valorEstoque)} subtitle="Não vendidos" color="white" /><Stat icon={TrendingUp} title="Lucro Esperado" value={currency(summary.lucroEsperado)} subtitle="Venda prevista" color="green" /><Stat icon={DollarSign} title="Lucro Real" value={currency(summary.lucroReal)} subtitle="Vendas válidas" color="real-profit" /><Stat icon={TrendingUp} title="Retorno sobre Capital" value={`${roiPercent.toFixed(2).replace(".", ",")}%`} subtitle="Lucro sobre capital" color="green" /><Stat icon={Package} title="Produtos em Estoque" value={summary.produtosEstoque} subtitle="Disponíveis" color="amber" /></section>}
@@ -809,6 +1015,10 @@ function ProductModal({ title, product, setProduct, onClose, onSave, onDelete, s
     if (exists) {
       setProduct({ ...product, custosExtras: current.filter((item) => (item.custo_extra_id || item.id) !== costItem.id) });
     } else {
+      if (Number(costItem.estoqueAtual || 0) <= 0) {
+        alert(`Estoque indisponível para: ${costItem.descricao}`);
+        return;
+      }
       setProduct({ ...product, custosExtras: [...current, { custo_extra_id: costItem.id, descricao: costItem.descricao, valor: Number(costItem.valor || 0) }] });
     }
   }
@@ -889,7 +1099,7 @@ function ExtraCostSelector({ extraCosts, selected, toggleExtraCost }) {
                     <span>{checked ? "✓" : "+"}</span>
                     <div>
                       <strong>{cost.descricao}</strong>
-                      <small>{currency(cost.valor)}</small>
+                      <small>{currency(cost.valor)} • Estoque: {Number(cost.estoqueAtual || 0)}</small>
                     </div>
                   </button>
                 );
@@ -899,6 +1109,81 @@ function ExtraCostSelector({ extraCosts, selected, toggleExtraCost }) {
         </div>
       )}
     </div>
+  );
+}
+
+
+function AlertsModal({ alerts, unreadKeys, onClose, onMarkSeen, onMarkAll }) {
+  return (
+    <div className="modal-backdrop">
+      <div className="version-modal alerts-modal">
+        <div className="modal-header">
+          <div>
+            <h2>Central de alertas</h2>
+            <p>{unreadKeys.length} alerta(s) não visualizado(s).</p>
+          </div>
+          <button onClick={onClose}><X size={18} /> Fechar</button>
+        </div>
+
+        <div className="module-actions">
+          {!!alerts.length && <button onClick={onMarkAll}><CheckCircle size={17} /> Marcar todos como vistos</button>}
+        </div>
+
+        {!alerts.length && <p className="muted">Nenhum alerta no momento.</p>}
+
+        <div className="alerts-list">
+          {alerts.map((alert) => {
+            const unread = unreadKeys.includes(alert.key);
+            return (
+              <div key={alert.key} className={unread ? "alert-item unread" : "alert-item"}>
+                <div>
+                  <strong>{alert.title}</strong>
+                  <p>{alert.message}</p>
+                </div>
+                {unread ? (
+                  <button onClick={() => onMarkSeen(alert.key)}>Marcar como visto</button>
+                ) : (
+                  <span className="seen-pill">Visto</span>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function BackgroundAnimations({ mode }) {
+  if (mode === "desativado") return null;
+
+  const isGamer = mode === "gamer";
+  return (
+    <div className={`background-animations ${isGamer ? "gamer" : "discreto"}`} aria-hidden="true">
+      <span className="bg-sprite sprite-runner">🎮</span>
+      <span className="bg-sprite sprite-bolt">⚡</span>
+      <span className="bg-sprite sprite-orb">🔥</span>
+      {isGamer && <span className="bg-sprite sprite-star">⭐</span>}
+    </div>
+  );
+}
+
+function MonthlyHistory({ data }) {
+  if (!data.length) return <p className="muted">Nenhum histórico mensal disponível ainda.</p>;
+
+  return (
+    <SimpleTable headers={["Mês", "Capital", "Faturamento", "Lucro Real", "ROI", "Vendidos"]}>
+      {data.map((row) => (
+        <tr key={row.key}>
+          <td>{row.label.charAt(0).toUpperCase() + row.label.slice(1)}</td>
+          <td>{currency(row.capital)}</td>
+          <td className="green">{currency(row.faturamento)}</td>
+          <td className="green strong">{currency(row.lucroReal)}</td>
+          <td>{row.roi.toFixed(2).replace(".", ",")}%</td>
+          <td>{row.vendidos}</td>
+        </tr>
+      ))}
+    </SimpleTable>
   );
 }
 
@@ -1001,7 +1286,30 @@ function CalendarEventList({ events }) {
 }
 
 function VersionModal({ onClose }) {
-  return <div className="modal-backdrop"><div className="version-modal"><div className="modal-header"><div><h2>Novidades da versão {APP_VERSION}</h2><p>Resumo da atualização.</p></div><button onClick={onClose}><X size={18} /> Fechar</button></div><ul><li>Custos extras agora abrem em popup ao clicar no botão + Custos extras.</li><li>Somente os custos extras selecionados aparecem no produto.</li><li>Cada custo extra aplicado possui lixeira para remoção individual.</li><li>Calendário visual mensal com navegação entre meses.</li><li>Compras aparecem em vermelho e vendas em verde.</li><li>Ao clicar em um dia, o sistema mostra os detalhes das movimentações.</li></ul></div></div>;
+  return (
+    <div className="modal-backdrop">
+      <div className="version-modal">
+        <div className="modal-header">
+          <div>
+            <h2>Novidades da versão {APP_VERSION}</h2>
+            <p>Resumo da atualização 4.0.</p>
+          </div>
+          <button onClick={onClose}><X size={18} /> Fechar</button>
+        </div>
+        <ul>
+          <li>Controle de estoque atual e estoque mínimo em Custos Extras.</li>
+          <li>Consumo automático de estoque ao aplicar custo extra em produto.</li>
+          <li>Devolução automática ao remover custo extra do produto.</li>
+          <li>Bloqueio de custo extra sem estoque disponível.</li>
+          <li>Sino de alertas com contador e central de alertas.</li>
+          <li>Fechamento mensal visual com Dashboard focado no mês vigente.</li>
+          <li>Histórico mensal em Relatórios.</li>
+          <li>Dashboard mais limpo com Gerenciamento de Vendas centralizado.</li>
+          <li>Animações de fundo com modos Desativado, Discreto e Gamer.</li>
+        </ul>
+      </div>
+    </div>
+  );
 }
 
 function FormSection({ title, children }) { return <div className="form-section"><h3>{title}</h3>{children}</div>; }
