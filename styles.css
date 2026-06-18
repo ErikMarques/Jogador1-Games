@@ -1,4 +1,4 @@
-/* Jogador1 Games - v3.1 */
+/* Jogador1 Games - v3.1.4 */
 * { box-sizing: border-box; }
 html, body, #root { min-height: 100%; }
 body {
@@ -535,4 +535,99 @@ tr td:last-child { border-radius: 0 16px 16px 0; }
 
 .simple-table .icon-btn.danger {
   color: #f87171;
+}
+
+
+/* Jogador1 Games - v3.1.3 */
+.sidebar nav {
+  padding-left: 0;
+  margin-left: 0;
+}
+
+.sidebar nav button {
+  justify-content: flex-start;
+  padding-left: 18px;
+  min-height: 46px;
+  overflow: visible;
+}
+
+.sidebar nav button svg {
+  flex-shrink: 0;
+  min-width: 18px;
+}
+
+.sale-product-cell {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 260px;
+}
+
+.sale-thumb {
+  width: 54px;
+  height: 54px;
+  min-width: 54px;
+  padding: 0;
+  border-radius: 14px;
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,.12);
+  background: #050505;
+}
+
+.sale-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.sale-product-cell strong {
+  color: #fff;
+  font-weight: 800;
+}
+
+@media (max-width: 980px) {
+  .sidebar nav button {
+    padding-left: 14px;
+  }
+}
+
+
+/* Jogador1 Games - v3.1.4 */
+.stat-card.real-profit {
+  background:
+    linear-gradient(135deg, rgba(34, 197, 94, 0.18), rgba(17, 17, 20, 0.98) 58%),
+    #111114;
+  border-color: rgba(34, 197, 94, 0.48);
+  box-shadow:
+    0 0 0 1px rgba(34, 197, 94, 0.12),
+    0 0 34px rgba(34, 197, 94, 0.18);
+}
+
+.stat-card.real-profit strong {
+  color: #86efac;
+  font-size: clamp(24px, 2vw, 30px);
+}
+
+.stat-card.real-profit span {
+  color: #86efac;
+  background: rgba(34, 197, 94, 0.16);
+  border-color: rgba(34, 197, 94, 0.42);
+}
+
+.modal-action-buttons {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+}
+
+.delete-product-button {
+  width: 100%;
+  height: 46px;
+  background: rgba(127, 29, 29, 0.85);
+  border: 1px solid rgba(248, 113, 113, 0.35);
+  color: #fecaca;
+}
+
+.delete-product-button:hover {
+  background: rgba(185, 28, 28, 0.95);
 }
