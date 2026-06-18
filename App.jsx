@@ -1,1390 +1,1257 @@
-import React, { useEffect, useMemo, useState } from "react";
-import { createClient } from "@supabase/supabase-js";
-import {
-  BarChart3,
-  Bell,
-  CheckCircle,
-  Boxes,
-  CalendarDays,
-  DollarSign,
-  Download,
-  Gamepad2,
-  ImagePlus,
-  LayoutDashboard,
-  LogOut,
-  Package,
-  Pencil,
-  Plus,
-  ReceiptText,
-  ShoppingCart,
-  Trash2,
-  TrendingUp,
-  Users,
-  Wallet,
-  Wrench,
-  X,
-} from "lucide-react";
-
-const APP_VERSION = "4.0.2";
-const STORAGE_BUCKET = "produto-imagens";
-
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-const supabase = supabaseUrl && supabaseKey ? createClient(supabaseUrl, supabaseKey) : null;
-
-const emptyProduct = {
-  nome: "",
-  sku: "",
-  compra: "",
-  vendaEsperada: "",
-  vendaReal: "",
-  estoqueMinimo: 1,
-  quantidade: 1,
-  imagens: [],
-  custosExtras: [],
-};
-
-const permissionsByRole = {
-  administrador: { canCreate: true, canEdit: true, canDelete: true, canSell: true, canFinancial: true, canUsers: true, canBackup: true },
-  funcionario: { canCreate: true, canEdit: true, canDelete: false, canSell: true, canFinancial: false, canUsers: false, canBackup: true },
-  visualizacao: { canCreate: false, canEdit: false, canDelete: false, canSell: false, canFinancial: false, canUsers: false, canBackup: false },
-};
-
-function currency(value) {
-  return Number(value || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+/* Jogador1 Games - v4.0.2 */
+* { box-sizing: border-box; }
+html, body, #root { min-height: 100%; }
+body {
+  margin: 0;
+  background: #050505;
+  color: #fff;
+  font-family: Inter, Arial, Helvetica, sans-serif;
+  overflow-x: hidden;
 }
-
-function dateKey(value) {
-  if (!value) return "";
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return "";
-  return d.toISOString().slice(0, 10);
+button, input, select { font: inherit; }
+.app {
+  min-height: 100vh;
+  width: 100%;
+  background: radial-gradient(circle at 20% 0%, rgba(220, 38, 38, 0.18), transparent 35%),
+              radial-gradient(circle at 85% 100%, rgba(34, 197, 94, 0.08), transparent 35%),
+              #050505;
 }
-
-function formatDateBR(value) {
-  if (!value) return "-";
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return value;
-  return d.toLocaleDateString("pt-BR");
+.layout { display: grid; grid-template-columns: 240px minmax(0, 1fr); min-height: 100vh; width: 100%; }
+.sidebar { background: #030303; border-right: 1px solid rgba(255,255,255,.1); padding: 18px; min-width: 0; }
+.brand { padding: 18px; border: 1px solid rgba(239,68,68,.2); border-radius: 26px; background: #0b0b0d; text-align: center; margin-bottom: 24px; box-shadow: 0 0 45px rgba(220,38,38,.15); }
+.brand-icon { display: flex; align-items: center; justify-content: center; width: 82px; height: 82px; margin: 0 auto 12px; border-radius: 999px; border: 1px solid rgba(239,68,68,.3); background: rgba(220,38,38,.15); }
+.brand h1 { margin: 0; font-size: 24px; font-weight: 900; font-style: italic; }
+.brand h1 span, .login-card h1 span { color: #ef4444; }
+.brand p { margin: 0; letter-spacing: .42em; color: #ef4444; font-size: 11px; font-weight: 800; }
+.sidebar nav { display: grid; gap: 8px; }
+.sidebar nav button { display: flex; gap: 12px; align-items: center; width: 100%; border: 0; border-radius: 16px; padding: 12px 14px; background: transparent; color: #d4d4d8; cursor: pointer; text-align: left; transition: .2s; }
+.sidebar nav button:hover { background: rgba(255,255,255,.05); color: #fff; }
+.sidebar nav button.active { color: #fff; background: linear-gradient(90deg,#dc2626,#ef4444); box-shadow: 0 0 25px rgba(220,38,38,.28); }
+.sidebar-profit { margin-top: 28px; padding: 18px; border-radius: 24px; background: rgba(34,197,94,.1); border: 1px solid rgba(34,197,94,.2); }
+.sidebar-profit p, .sidebar-profit small { color: #d4d4d8; }
+.sidebar-profit strong { display: block; margin: 8px 0; font-size: 22px; color: #86efac; }
+.logout-btn { width: 100%; margin-top: 15px; padding: 12px; background: #991b1b; color: white; border: none; border-radius: 12px; cursor: pointer; font-weight: bold; display: flex; gap: 8px; justify-content: center; align-items: center; }
+.content { min-height: 100vh; padding: 22px; background: #050505; min-width: 0; overflow-x: hidden; }
+.topbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 22px; padding: 20px; border-radius: 30px; background: #0f0f13; border: 1px solid rgba(255,255,255,.1); box-shadow: 0 0 60px rgba(0,0,0,.45); gap: 16px; }
+.topbar-title { display: flex; gap: 12px; align-items: center; min-width: 0; }
+.topbar-icon { padding: 12px; border-radius: 16px; color: #f87171; background: rgba(239,68,68,.1); border: 1px solid rgba(239,68,68,.25); flex-shrink: 0; }
+.topbar h2 { margin: 0; font-size: clamp(24px,2.2vw,32px); font-weight: 900; }
+.topbar p, .topbar small { display: block; margin-top: 4px; color: #d4d4d8; }
+.topbar-actions { display: flex; gap: 12px; align-items: center; flex-shrink: 0; }
+.date-pill, .capital-pill { border-radius: 16px; padding: 12px 16px; background: rgba(0,0,0,.5); border: 1px solid rgba(255,255,255,.1); white-space: nowrap; }
+.date-pill { display: flex; gap: 8px; align-items: center; color: #e5e7eb; }
+.capital-pill { background: rgba(34,197,94,.1); border-color: rgba(34,197,94,.2); text-align: right; }
+.capital-pill p { margin: 0; color: #d4d4d8; font-size: 12px; }
+.capital-pill strong { color: #86efac; font-size: 20px; }
+.stats { display: grid; grid-template-columns: repeat(auto-fit,minmax(205px,1fr)); gap: 16px; margin-bottom: 22px; }
+.stat-card { display: grid; grid-template-columns: minmax(0,1fr) 44px; align-items: center; overflow: hidden; padding: 20px; gap: 12px; border-radius: 26px; background: #16161b; border: 1px solid rgba(255,255,255,.1); box-shadow: 0 0 45px rgba(0,0,0,.45); min-width: 0; }
+.stat-card p { margin: 0; color: #d4d4d8; }
+.stat-card strong { display: block; margin: 8px 0; font-size: clamp(20px,1.5vw,24px); line-height: 1.1; white-space: nowrap; color: white; }
+.stat-card small { color: #a1a1aa; }
+.stat-card span { width: 44px; height: 44px; border-radius: 16px; display: grid; place-items: center; border: 1px solid rgba(255,255,255,.16); }
+.stat-card.red span { color: #f87171; background: rgba(239,68,68,.1); border-color: rgba(239,68,68,.2); }
+.stat-card.white span { color: #fff; background: rgba(255,255,255,.1); }
+.stat-card.green span { color: #86efac; background: rgba(34,197,94,.1); border-color: rgba(34,197,94,.2); }
+.stat-card.purple span { color: #d8b4fe; background: rgba(168,85,247,.1); border-color: rgba(168,85,247,.2); }
+.stat-card.amber span { color: #fbbf24; background: rgba(245,158,11,.1); border-color: rgba(245,158,11,.2); }
+.dashboard-grid, .report-layout, .maintenance-grid { display: grid; grid-template-columns: minmax(0,1fr); gap: 20px; }
+.main-section, .side-section { display: grid; gap: 20px; align-content: start; min-width: 0; }
+.side-section { grid-template-columns: repeat(auto-fit,minmax(280px,1fr)); }
+.two-columns { display: grid; grid-template-columns: repeat(auto-fit,minmax(280px,1fr)); gap: 20px; }
+.module-card { padding: 20px; border-radius: 28px; background: #111114; border: 1px solid rgba(255,255,255,.1); box-shadow: 0 0 50px rgba(0,0,0,.45); min-width: 0; }
+.module-header { margin-bottom: 20px; }
+.module-header h3 { display: flex; gap: 8px; align-items: center; margin: 0; font-size: 18px; color: #fff; }
+.module-header h3 svg { color: #ef4444; }
+.module-header p { margin: 4px 0 0; color: #d4d4d8; font-size: 14px; }
+.module-actions { display: flex; justify-content: flex-end; margin-bottom: 16px; gap: 10px; flex-wrap: wrap; }
+button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; border: 0; border-radius: 16px; padding: 10px 16px; background: linear-gradient(90deg,#dc2626,#ef4444); color: #fff; cursor: pointer; font-weight: 700; }
+input, select { width: 100%; height: 38px; border-radius: 8px; border: 1px solid rgba(255,255,255,.15); background: #070709; color: #fff; padding: 0 12px; min-width: 0; }
+input::placeholder { color: #71717a; }
+input:disabled { opacity: .65; cursor: not-allowed; }
+.table-wrap { width: 100%; overflow-x: auto; padding: 12px; border-radius: 24px; background: #0a0a0d; border: 1px solid rgba(255,255,255,.1); }
+table { width: 100%; border-collapse: separate; border-spacing: 0 12px; }
+th { text-align: left; color: #d4d4d8; text-transform: uppercase; letter-spacing: .08em; font-size: 12px; padding: 8px 12px; }
+td { padding: 12px; background: #1a1a20; color: #fff; }
+tr td:first-child { border-radius: 16px 0 0 16px; }
+tr td:last-child { border-radius: 0 16px 16px 0; }
+.products-table { min-width: 1380px; }
+.product-cell { display: flex; gap: 12px; align-items: flex-start; }
+.product-cell > div { display: grid; gap: 8px; min-width: 150px; }
+.thumb { width: 76px; height: 76px; overflow: hidden; padding: 0; border-radius: 16px; border: 1px solid rgba(255,255,255,.12); background: #000; flex-shrink: 0; }
+.thumb img { width: 100%; height: 100%; object-fit: cover; }
+.cost-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; min-width: 190px; }
+.cost-grid input:last-child { grid-column: span 2; }
+.stock-grid { display: grid; gap: 8px; width: 110px; }
+.wide-money-input { width: 140px !important; min-width: 140px !important; }
+.green { color: #86efac !important; }
+.red { color: #f87171 !important; }
+.white, .strong { font-weight: 900; color: #fff; }
+.muted { color: #a1a1aa; }
+.row-actions { display: flex; gap: 8px; }
+.sold-btn { border: 0; border-radius: 12px; padding: 8px 12px; background: rgba(34,197,94,.15); color: #86efac; cursor: pointer; font-weight: 700; }
+.icon-btn { width: 36px; height: 36px; border-radius: 12px; border: 0; background: transparent; color: #d4d4d8; cursor: pointer; padding: 0; }
+.icon-btn:hover { background: rgba(255,255,255,.1); }
+.icon-btn.danger { color: #f87171; }
+.status { display: inline-flex; border-radius: 999px; padding: 6px 12px; font-size: 12px; font-weight: 800; white-space: nowrap; }
+.status.sold { color: #86efac; background: rgba(34,197,94,.15); }
+.status.reserved { color: #fbbf24; background: rgba(245,158,11,.15); }
+.status.stock { color: #fecaca; background: rgba(239,68,68,.15); }
+.low-stock-row td { background: rgba(127,29,29,.35); }
+.line { display: flex; justify-content: space-between; padding-bottom: 12px; margin-bottom: 12px; border-bottom: 1px solid rgba(255,255,255,.1); color: #d4d4d8; gap: 10px; }
+.cost-bars, .finance-chart { display: grid; gap: 16px; }
+.bar-label { display: flex; justify-content: space-between; color: #d4d4d8; margin-bottom: 6px; gap: 10px; }
+.bar-bg { height: 12px; border-radius: 999px; background: #18181b; overflow: hidden; }
+.bar-bg div { height: 100%; border-radius: 999px; }
+.bar-white { background: #fff; }
+.bar-red { background: #ef4444; }
+.bar-yellow { background: #fbbf24; }
+.bar-green { background: #22c55e; }
+.bar-purple { background: #a855f7; }
+.recent-list, .low-stock-list { display: grid; gap: 12px; }
+.recent-item, .low-stock-item { display: flex; justify-content: space-between; padding: 16px; border-radius: 16px; background: rgba(0,0,0,.4); border: 1px solid rgba(255,255,255,.1); gap: 14px; }
+.low-stock-item { border-color: rgba(239,68,68,.4); }
+.recent-item small { display: block; margin-top: 4px; color: #a1a1aa; }
+.recent-item span, .low-stock-item span { color: #86efac; font-weight: 900; }
+.report-grid { display: grid; grid-template-columns: repeat(auto-fit,minmax(220px,1fr)); gap: 18px; margin-bottom: 20px; }
+.mini-report { padding: 20px; border-radius: 24px; background: rgba(0,0,0,.4); border: 1px solid rgba(255,255,255,.1); }
+.mini-report p { margin: 0; color: #d4d4d8; }
+.mini-report strong { display: block; margin-top: 8px; color: #fff; font-size: 24px; }
+.mini-report small { display: block; margin-top: 8px; color: #a1a1aa; }
+.extra-cost-form { display: grid; grid-template-columns: minmax(0,1fr) 160px 160px auto; gap: 12px; margin-bottom: 18px; }
+.right { text-align: right; }
+.login-screen, .modal-backdrop, .image-overlay { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; background: rgba(0,0,0,.8); backdrop-filter: blur(5px); padding: 24px; }
+.login-screen { position: static; min-height: 100vh; background: radial-gradient(circle at 20% 0%, rgba(220,38,38,.18), transparent 35%), #050505; }
+.login-card { width: min(420px,100%); background: #0f0f14; border: 1px solid #262626; border-radius: 24px; padding: 40px; display: flex; flex-direction: column; gap: 15px; box-shadow: 0 0 60px rgba(220,38,38,.16); }
+.login-logo { width: 80px; height: 80px; border-radius: 999px; display: grid; place-items: center; border: 1px solid rgba(239,68,68,.3); background: rgba(220,38,38,.15); margin: 0 auto 6px; }
+.login-card h1 { color: #fff; margin: 0; text-align: center; }
+.login-card p { color: #aaa; text-align: center; margin: 0 0 8px; }
+.login-card button { background: #dc2626; color: white; border: none; padding: 14px; border-radius: 12px; cursor: pointer; font-weight: bold; }
+.auth-error { color: #f87171; text-align: center; }
+.image-overlay img { max-width: 90vw; max-height: 85vh; border-radius: 24px; border: 1px solid rgba(255,255,255,.15); }
+.product-modal, .version-modal { width: min(960px,100%); max-height: 92vh; overflow-y: auto; padding: 24px; border-radius: 32px; background: #111114; border: 1px solid rgba(255,255,255,.1); box-shadow: 0 0 80px rgba(220,38,38,.22); }
+.version-modal { width: min(620px,100%); }
+.version-modal li { margin-bottom: 10px; color: #d4d4d8; }
+.modal-header { display: flex; justify-content: space-between; gap: 20px; margin-bottom: 24px; }
+.modal-header h2 { margin: 0; font-size: 24px; font-weight: 900; }
+.modal-header p { margin: 6px 0 0; color: #a1a1aa; }
+.modal-header button { background: transparent; color: #d4d4d8; }
+.modal-grid { display: grid; grid-template-columns: minmax(0,1fr) minmax(280px,.85fr); gap: 20px; }
+.modal-left, .modal-right { display: grid; gap: 16px; align-content: start; min-width: 0; }
+.form-section { padding: 16px; border-radius: 24px; background: rgba(0,0,0,.35); border: 1px solid rgba(255,255,255,.1); }
+.form-section h3 { margin: 0 0 12px; }
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.form-grid input:last-child:nth-child(odd) { grid-column: span 2; }
+.file-input::file-selector-button, input[type="file"]::file-selector-button { margin-right: 12px; border: 0; border-radius: 12px; background: #dc2626; color: #fff; padding: 6px 10px; font-weight: 700; }
+.images-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; margin-top: 14px; }
+.image-slot { position: relative; height: 96px; overflow: hidden; border-radius: 16px; background: rgba(0,0,0,.6); border: 1px solid rgba(255,255,255,.1); }
+.image-slot.empty { display: grid; place-items: center; color: #52525b; border-style: dashed; }
+.image-slot button:first-child { width: 100%; height: 100%; padding: 0; background: transparent; }
+.image-slot img { width: 100%; height: 100%; object-fit: cover; }
+.delete-image { position: absolute; right: 6px; bottom: 6px; width: 28px; height: 28px; padding: 0; border: 0; border-radius: 10px; color: #fff; background: #dc2626; }
+.profit-box { padding: 16px; border-radius: 24px; background: rgba(34,197,94,.1); border: 1px solid rgba(34,197,94,.2); }
+.profit-box p { margin: 0 0 6px; color: #d4d4d8; }
+.profit-box strong { display: block; margin-bottom: 14px; font-size: 26px; }
+.full-button { width: 100%; height: 48px; }
+.version-footer { margin-top: 28px; padding: 18px; text-align: center; color: #a1a1aa; border-top: 1px solid rgba(255,255,255,.08); }
+.version-footer button { background: transparent; padding: 0; color: #f87171; border-radius: 0; }
+@media (min-width: 1500px) {
+  .dashboard-grid { grid-template-columns: minmax(0,1fr) 360px; }
+  .side-section { grid-template-columns: 1fr; }
 }
-
-function monthKeyFromValue(value) {
-  if (!value) return "";
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return "";
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+@media (max-width: 1180px) {
+  .layout { grid-template-columns: 210px minmax(0,1fr); }
+  .brand h1 { font-size: 22px; }
+  .brand-icon { width: 74px; height: 74px; }
+  .topbar { align-items: flex-start; }
+  .topbar-actions { flex-direction: column; align-items: stretch; }
 }
-
-function currentMonthKey() {
-  return monthKeyFromValue(new Date());
+@media (max-width: 980px) {
+  .layout { grid-template-columns: 1fr; }
+  .sidebar { border-right: 0; border-bottom: 1px solid rgba(255,255,255,.1); }
+  .brand { display: none; }
+  .sidebar nav { display: flex; overflow-x: auto; padding-bottom: 8px; }
+  .sidebar nav button { width: auto; white-space: nowrap; flex-shrink: 0; }
+  .sidebar-profit, .logout-btn { margin-top: 14px; }
+  .content { padding: 16px; }
+  .topbar { flex-direction: column; align-items: stretch; }
+  .topbar-actions { flex-direction: row; }
+  .extra-cost-form, .modal-grid { grid-template-columns: 1fr; }
 }
-
-function monthLabelFromKey(key) {
-  if (!key) return "";
-  const [year, month] = key.split("-").map(Number);
-  const d = new Date(year, month - 1, 1);
-  return d.toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
+@media (max-width: 720px) {
+  .stats { grid-template-columns: 1fr; }
+  .topbar-actions, .two-columns, .side-section, .report-grid { grid-template-columns: 1fr; display: grid; }
+  .form-grid { grid-template-columns: 1fr; }
+  .form-grid input:last-child:nth-child(odd) { grid-column: auto; }
+  .modal-header { flex-direction: column; }
+  .images-grid { grid-template-columns: repeat(2,1fr); }
+  .product-modal, .version-modal, .login-card { padding: 20px; border-radius: 22px; }
 }
-
-function productMovementDate(product) {
-  if (!product) return new Date().toISOString();
-
-  if (product.status === "Vendido") {
-    return product.dataVenda || product.dataCompra || new Date().toISOString();
-  }
-
-  return product.dataCompra || new Date().toISOString();
-}
-
-function productSaleDate(product) {
-  return product?.dataVenda || product?.dataCompra || new Date().toISOString();
-}
-
-
-function currentMonthLabel() {
-  const label = new Date().toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
-  return label.charAt(0).toUpperCase() + label.slice(1);
-}
-
-function costExtrasTotal(p) {
-  if (Array.isArray(p.custosExtras) && p.custosExtras.length) {
-    return p.custosExtras.reduce((acc, item) => acc + Number(item.valor || 0), 0);
-  }
-
-  return Number(p.chip || 0) + Number(p.frete || 0) + Number(p.manutencao || 0) + Number(p.outros || 0);
-}
-
-function productMath(p) {
-  const custoFinal = Number(p.compra || 0) + costExtrasTotal(p);
-  const lucroEsperado = Number(p.vendaEsperada || 0) - custoFinal;
-  const lucroReal = p.status === "Vendido" ? Number(p.vendaReal || 0) - custoFinal : 0;
-  return { custoFinal, lucroEsperado, lucroReal, custosExtras: costExtrasTotal(p) };
-}
-
-function placeholderImage(text, color = "#dc2626") {
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="300" height="220" viewBox="0 0 300 220"><rect width="300" height="220" rx="24" fill="#101014"/><rect x="18" y="18" width="264" height="184" rx="20" fill="${color}" opacity="0.18"/><circle cx="150" cy="82" r="42" fill="${color}" opacity="0.8"/><rect x="86" y="132" width="128" height="18" rx="9" fill="#ffffff" opacity="0.9"/><rect x="108" y="160" width="84" height="10" rx="5" fill="#ffffff" opacity="0.55"/><text x="150" y="207" font-family="Arial" font-size="16" font-weight="700" text-anchor="middle" fill="#ffffff">${text}</text></svg>`;
-  return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
-}
-
-function imageSrc(image) {
-  if (!image) return "";
-  if (typeof image === "string") return image;
-  return image.preview || image.url || "";
-}
-
-function isStorageUrl(url) {
-  return typeof url === "string" && url.includes(`/storage/v1/object/public/${STORAGE_BUCKET}/`);
-}
-
-function storagePathFromPublicUrl(url) {
-  if (!isStorageUrl(url)) return null;
-  const marker = `/storage/v1/object/public/${STORAGE_BUCKET}/`;
-  return decodeURIComponent(url.split(marker)[1] || "");
-}
-
-export default function App() {
-  const [activeMenu, setActiveMenu] = useState("Dashboard");
-  const [products, setProducts] = useState([]);
-  const [newProduct, setNewProduct] = useState(emptyProduct);
-  const [newProductOpen, setNewProductOpen] = useState(false);
-  const [editingProduct, setEditingProduct] = useState(null);
-  const [expandedImage, setExpandedImage] = useState(null);
-  const [versionOpen, setVersionOpen] = useState(false);
-  const [calendarOpen, setCalendarOpen] = useState(false);
-  const [alertsOpen, setAlertsOpen] = useState(false);
-  const [syncMessage, setSyncMessage] = useState("Aguardando conexão com Supabase...");
-  const [syncing, setSyncing] = useState(false);
-
-  const [user, setUser] = useState(null);
-  const [profile, setProfile] = useState({ perfil: "administrador", nome: "Administrador" });
-  const [profiles, setProfiles] = useState([]);
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [loadingAuth, setLoadingAuth] = useState(true);
-  const [authError, setAuthError] = useState("");
-
-  const [extraCost, setExtraCost] = useState({ descricao: "", valor: "", data: "", estoqueAtual: "", estoqueMinimo: "" });
-  const [animationMode, setAnimationMode] = useState(() => localStorage.getItem("j1_animation_mode") || "discreto");
-  const [seenAlertKeys, setSeenAlertKeys] = useState(() => {
-    try { return JSON.parse(localStorage.getItem("j1_seen_alerts") || "[]"); } catch { return []; }
-  });
-  const [monthAckKey, setMonthAckKey] = useState(() => localStorage.getItem("j1_month_ack") || currentMonthKey());
-  const [extraCosts, setExtraCosts] = useState([]);
-
-  const permissions = permissionsByRole[profile?.perfil || "visualizacao"] || permissionsByRole.visualizacao;
-
-  useEffect(() => {
-    if (!supabase) {
-      setLoadingAuth(false);
-      return;
-    }
-
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null);
-      setLoadingAuth(false);
-    });
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
-    });
-
-    return () => subscription.unsubscribe();
-  }, []);
-
-  useEffect(() => {
-    if (user) {
-      loadUserProfile();
-      loadProfiles();
-      loadExtraCosts();
-      loadProducts();
-    }
-  }, [user]);
-
-  async function signIn() {
-    if (!supabase) return setAuthError("Supabase não configurado.");
-    setAuthError("");
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) setAuthError(error.message);
-  }
-
-  async function signOut() {
-    await supabase.auth.signOut();
-    setUser(null);
-  }
-
-  async function loadUserProfile() {
-    if (!supabase || !user) return;
-    const { data } = await supabase.from("usuarios_perfis").select("*").eq("user_id", user.id).maybeSingle();
-    if (data) return setProfile(data);
-
-    const fallback = { user_id: user.id, email: user.email, nome: user.email, perfil: "administrador", status: "A" };
-    await supabase.from("usuarios_perfis").insert(fallback);
-    setProfile(fallback);
-  }
-
-  async function loadProfiles() {
-    if (!supabase) return;
-    const { data } = await supabase.from("usuarios_perfis").select("*").order("criado_em", { ascending: false });
-    if (data) setProfiles(data);
-  }
-
-  async function loadExtraCosts() {
-    if (!supabase) return;
-    const { data } = await supabase.from("custos_extras").select("*").order("criado_em", { ascending: false });
-    if (data) {
-      setExtraCosts(data.map((c) => ({ id: c.id, descricao: c.descricao, valor: Number(c.valor || 0), data: c.criado_em ? formatDateBR(c.criado_em) : "", estoqueAtual: Number(c.estoque_atual || 0), estoqueMinimo: Number(c.estoque_minimo || 0) })));
-    }
-  }
-
-  async function loadProducts() {
-    if (!supabase) {
-      setSyncMessage("Configure as variáveis VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY.");
-      return;
-    }
-
-    setSyncing(true);
-    const { data, error } = await supabase
-      .from("produtos")
-      .select("*, produto_imagens(imagem_url), produto_custos_extras(id, custo_extra_id, descricao, valor)")
-      .order("criado_em", { ascending: false });
-
-    if (error) {
-      setSyncMessage(`Erro ao carregar Supabase: ${error.message}`);
-      setSyncing(false);
-      return;
-    }
-
-    const converted = (data || []).map((p) => ({
-      id: p.id,
-      nome: p.nome || "",
-      sku: p.sku || "",
-      compra: Number(p.preco_compra || 0),
-      chip: Number(p.chip || 0),
-      frete: Number(p.frete || 0),
-      manutencao: Number(p.manutencao || 0),
-      outros: Number(p.outros || 0),
-      vendaEsperada: Number(p.venda_esperada || 0),
-      vendaReal: p.venda_real ?? "",
-      status: p.status || "Em estoque",
-      statusRegistro: p.status_registro || "A",
-      statusVenda: p.status_venda || "A",
-      estoqueMinimo: Number(p.estoque_minimo || 1),
-      quantidade: Number(p.quantidade || 1),
-      dataCompra: p.criado_em || "",
-      dataVenda: p.data_venda || "",
-      imagens: (p.produto_imagens || []).map((img) => img.imagem_url),
-      custosExtras: (p.produto_custos_extras || []).map((c) => ({ id: c.id, custo_extra_id: c.custo_extra_id, descricao: c.descricao, valor: Number(c.valor || 0) })),
-    }));
-
-    setProducts(converted);
-    setSyncMessage(converted.length ? "Produtos carregados do Supabase." : "Banco conectado. Nenhum produto salvo ainda.");
-    setSyncing(false);
-  }
-
-  async function uploadImageFile(productId, image) {
-    if (!supabase) return imageSrc(image);
-    if (typeof image === "string") return image;
-    if (!image?.file) return imageSrc(image);
-
-    const extension = image.file.name.split(".").pop() || "jpg";
-    const cleanName = image.file.name.replace(/[^\w.-]/g, "_");
-    const path = `${user.id}/${productId}/${crypto.randomUUID()}-${cleanName}.${extension}`;
-
-    const { error } = await supabase.storage.from(STORAGE_BUCKET).upload(path, image.file, { cacheControl: "3600", upsert: false });
-    if (error) throw error;
-
-    const { data } = supabase.storage.from(STORAGE_BUCKET).getPublicUrl(path);
-    return data.publicUrl;
-  }
-
-  async function uploadImagesAndSaveRows(productId, images) {
-    const urls = [];
-    for (const image of (images || []).slice(0, 6)) {
-      const url = await uploadImageFile(productId, image);
-      if (url) urls.push(url);
-    }
-
-    if (urls.length) {
-      await supabase.from("produto_imagens").insert(urls.map((url) => ({ produto_id: productId, imagem_url: url })));
-    }
-    return urls;
-  }
-
-  async function deleteImageFromStorageIfNeeded(url) {
-    if (!supabase || !isStorageUrl(url)) return;
-    const path = storagePathFromPublicUrl(url);
-    if (path) await supabase.storage.from(STORAGE_BUCKET).remove([path]);
-  }
-
-  async function saveProductCosts(productId, costs) {
-    if (!supabase) return;
-
-    const { data: oldRows } = await supabase
-      .from("produto_custos_extras")
-      .select("custo_extra_id")
-      .eq("produto_id", productId);
-
-    const previousIds = (oldRows || []).map((row) => row.custo_extra_id).filter(Boolean);
-    const nextIds = (costs || []).map((cost) => cost.custo_extra_id || cost.id).filter(Boolean);
-
-    const addedIds = nextIds.filter((id) => !previousIds.includes(id));
-    const removedIds = previousIds.filter((id) => !nextIds.includes(id));
-
-    if (addedIds.length) {
-      const { data: stockRows } = await supabase
-        .from("custos_extras")
-        .select("id, descricao, estoque_atual")
-        .in("id", addedIds);
-
-      const noStock = (stockRows || []).find((item) => Number(item.estoque_atual || 0) <= 0);
-      if (noStock) {
-        throw new Error(`Estoque indisponível para o custo extra: ${noStock.descricao}`);
-      }
-
-      for (const id of addedIds) {
-        const item = (stockRows || []).find((row) => row.id === id);
-        await supabase
-          .from("custos_extras")
-          .update({ estoque_atual: Math.max(0, Number(item?.estoque_atual || 0) - 1) })
-          .eq("id", id);
-      }
-    }
-
-    if (removedIds.length) {
-      const { data: stockRows } = await supabase
-        .from("custos_extras")
-        .select("id, estoque_atual")
-        .in("id", removedIds);
-
-      for (const id of removedIds) {
-        const item = (stockRows || []).find((row) => row.id === id);
-        await supabase
-          .from("custos_extras")
-          .update({ estoque_atual: Number(item?.estoque_atual || 0) + 1 })
-          .eq("id", id);
-      }
-    }
-
-    await supabase.from("produto_custos_extras").delete().eq("produto_id", productId);
-
-    if (costs?.length) {
-      await supabase.from("produto_custos_extras").insert(
-        costs.map((cost) => ({
-          produto_id: productId,
-          custo_extra_id: cost.custo_extra_id || cost.id || null,
-          descricao: cost.descricao,
-          valor: Number(cost.valor || 0),
-        }))
-      );
-    }
-
-    await loadExtraCosts();
-  }
-
-  const activeProducts = useMemo(() => products.filter((p) => p.statusRegistro !== "X"), [products]);
-  const stockProducts = useMemo(() => activeProducts.filter((p) => p.status !== "Vendido"), [activeProducts]);
-  const soldProducts = useMemo(() => activeProducts.filter((p) => p.status === "Vendido" && p.statusVenda !== "X"), [activeProducts]);
-  const inactiveProducts = useMemo(() => products.filter((p) => p.statusRegistro === "X"), [products]);
-  const financialProducts = useMemo(() => activeProducts.filter((p) => p.status !== "Vendido" || p.statusVenda !== "X"), [activeProducts]);
-  const monthlyFinancialProducts = useMemo(() => financialProducts.filter((p) => {
-    return monthKeyFromValue(productMovementDate(p)) === currentMonthKey();
-  }), [financialProducts]);
-
-  const summary = useMemo(() => {
-    return monthlyFinancialProducts.reduce((acc, p) => {
-      const calc = productMath(p);
-      acc.capitalInvestido += calc.custoFinal;
-      acc.lucroEsperado += calc.lucroEsperado;
-      acc.valorEstoque += p.status === "Vendido" ? 0 : calc.custoFinal;
-      acc.produtosEstoque += p.status === "Vendido" ? 0 : 1;
-      acc.produtosVendidos += p.status === "Vendido" ? 1 : 0;
-      acc.receitaReal += p.status === "Vendido" ? Number(p.vendaReal || 0) : 0;
-      acc.lucroReal += calc.lucroReal;
-      acc.custoVendidos += p.status === "Vendido" ? calc.custoFinal : 0;
-      acc.compra += Number(p.compra || 0);
-      acc.custosExtras += calc.custosExtras;
-      return acc;
-    }, { capitalInvestido: 0, lucroEsperado: 0, valorEstoque: 0, produtosEstoque: 0, produtosVendidos: 0, receitaReal: 0, lucroReal: 0, custoVendidos: 0, compra: 0, custosExtras: 0 });
-  }, [monthlyFinancialProducts]);
-
-  const totalExtraCosts = extraCosts.reduce((acc, item) => acc + Number(item.valor || 0), 0);
-  const roiPercent = summary.capitalInvestido ? (summary.lucroReal / summary.capitalInvestido) * 100 : 0;
-  
-  const monthlyHistory = useMemo(() => {
-    const map = new Map();
-
-    for (const p of financialProducts) {
-      const key = monthKeyFromValue(productMovementDate(p));
-      if (!key) continue;
-
-      if (!map.has(key)) {
-        map.set(key, {
-          key,
-          label: monthLabelFromKey(key),
-          capital: 0,
-          faturamento: 0,
-          lucroReal: 0,
-          vendidos: 0,
-          roi: 0,
-        });
-      }
-
-      const row = map.get(key);
-      const calc = productMath(p);
-      row.capital += calc.custoFinal;
-
-      if (p.status === "Vendido" && p.statusVenda !== "X") {
-        row.faturamento += Number(p.vendaReal || 0);
-        row.lucroReal += calc.lucroReal;
-        row.vendidos += 1;
-      }
-    }
-
-    return Array.from(map.values())
-      .map((row) => ({ ...row, roi: row.capital ? (row.lucroReal / row.capital) * 100 : 0 }))
-      .sort((a, b) => b.key.localeCompare(a.key));
-  }, [financialProducts]);
-
-const lowStockProducts = stockProducts.filter((p) => Number(p.quantidade || 0) <= Number(p.estoqueMinimo || 0));
-
-  
-  const stockAlerts = useMemo(() => {
-    return extraCosts
-      .filter((cost) => Number(cost.estoqueAtual || 0) <= Number(cost.estoqueMinimo || 0))
-      .map((cost) => ({
-        key: `extra-stock-${cost.id}`,
-        type: "stock",
-        title: `${cost.descricao} está com estoque baixo`,
-        message: `Estoque atual: ${Number(cost.estoqueAtual || 0)} | Mínimo: ${Number(cost.estoqueMinimo || 0)}`,
-      }));
-  }, [extraCosts]);
-
-  const monthChangeAlert = useMemo(() => {
-    const actual = currentMonthKey();
-    if (!monthAckKey || monthAckKey === actual) return null;
-    return {
-      key: `month-change-${actual}`,
-      type: "month",
-      title: "Mês vigente alterado",
-      message: "Verifique seu lucro e valores no histórico de vendas mensal.",
-    };
-  }, [monthAckKey]);
-
-  const systemAlerts = useMemo(() => {
-    return [...(monthChangeAlert ? [monthChangeAlert] : []), ...stockAlerts];
-  }, [monthChangeAlert, stockAlerts]);
-
-  const unreadAlerts = useMemo(() => {
-    return systemAlerts.filter((alert) => !seenAlertKeys.includes(alert.key));
-  }, [systemAlerts, seenAlertKeys]);
-
-  function markAlertAsSeen(key) {
-    setSeenAlertKeys((prev) => prev.includes(key) ? prev : [...prev, key]);
-    if (key.startsWith("month-change-")) {
-      localStorage.setItem("j1_month_ack", currentMonthKey());
-      setMonthAckKey(currentMonthKey());
-    }
-  }
-
-  function markAllAlertsAsSeen() {
-    setSeenAlertKeys((prev) => Array.from(new Set([...prev, ...systemAlerts.map((alert) => alert.key)])));
-    localStorage.setItem("j1_month_ack", currentMonthKey());
-    setMonthAckKey(currentMonthKey());
-  }
-
-const costDistribution = [
-    ["Compras", summary.compra, "bar-white"],
-    ["Custos agregados", summary.custosExtras, "bar-red"],
-  ];
-
-  const menus = [
-    ["Dashboard", LayoutDashboard],
-    ["Produtos", Package],
-    ["Vendas", ShoppingCart],
-    ["Compras", ReceiptText],
-    ["Custos Extras", Wallet],
-    ["Relatórios", BarChart3],
-    ["Financeiro", DollarSign],
-    ["Usuários", Users],
-    ["Manutenção", Wrench],
-  ];
-
-  const showStats = activeMenu === "Dashboard" || activeMenu === "Relatórios";
-
-  const calendarEvents = useMemo(() => buildCalendarEvents(financialProducts), [financialProducts]);
-
-  function readImages(event, callback) {
-    const files = Array.from(event.target.files || []);
-    const selected = files.map((file) => ({ file, preview: URL.createObjectURL(file) }));
-    callback(selected);
-    event.target.value = "";
-  }
-
-  function importNewImages(event) {
-    readImages(event, (images) => {
-      setNewProduct((prev) => {
-        const current = prev.imagens || [];
-        const remaining = Math.max(0, 6 - current.length);
-        return { ...prev, imagens: [...current, ...images.slice(0, remaining)] };
-      });
-    });
-  }
-
-  function importEditImages(event) {
-    readImages(event, (images) => {
-      setEditingProduct((prev) => {
-        const current = prev.imagens || [];
-        const remaining = Math.max(0, 6 - current.length);
-        return { ...prev, imagens: [...current, ...images.slice(0, remaining)] };
-      });
-    });
-  }
-
-  async function addProduct() {
-    if (!permissions.canCreate) return alert("Seu perfil não permite cadastrar produtos.");
-    if (!newProduct.nome || !newProduct.compra || !newProduct.vendaEsperada) return;
-
-    const product = {
-      id: crypto.randomUUID(),
-      ...newProduct,
-      sku: newProduct.sku || `SKU-${activeProducts.length + 1}`,
-      compra: Number(newProduct.compra || 0),
-      vendaEsperada: Number(newProduct.vendaEsperada || 0),
-      vendaReal: "",
-      status: "Em estoque",
-      statusRegistro: "A",
-      estoqueMinimo: Number(newProduct.estoqueMinimo || 1),
-      quantidade: Number(newProduct.quantidade || 1),
-      dataCompra: new Date().toISOString(),
-      dataVenda: "",
-      imagens: newProduct.imagens.length ? newProduct.imagens : [placeholderImage("NOVO")],
-      custosExtras: newProduct.custosExtras || [],
-    };
-
-    if (!supabase) return;
-
-    const calc = productMath(product);
-    setSyncing(true);
-    setSyncMessage("Salvando produto no Supabase...");
-
-    const { data, error } = await supabase
-      .from("produtos")
-      .insert({
-        nome: product.nome,
-        sku: product.sku,
-        preco_compra: product.compra,
-        chip: 0,
-        frete: 0,
-        manutencao: 0,
-        outros: 0,
-        custo_final: calc.custoFinal,
-        venda_esperada: product.vendaEsperada,
-        venda_real: null,
-        lucro_esperado: calc.lucroEsperado,
-        lucro_real: null,
-        status: product.status,
-        status_registro: "A",
-        estoque_minimo: product.estoqueMinimo,
-        quantidade: product.quantidade,
-        data_venda: null,
-      })
-      .select()
-      .single();
-
-    if (error) {
-      setSyncMessage(`Erro ao salvar: ${error.message}`);
-      setSyncing(false);
-      return;
-    }
-
-    try {
-      const urls = await uploadImagesAndSaveRows(data.id, product.imagens);
-      await saveProductCosts(data.id, product.custosExtras);
-      const saved = { ...product, id: data.id, dataCompra: data.criado_em || product.dataCompra, imagens: urls };
-      setProducts((prev) => [saved, ...prev]);
-      setNewProduct(emptyProduct);
-      setNewProductOpen(false);
-      setSyncMessage("Produto salvo com custos agregados.");
-    } catch (error) {
-      setSyncMessage(`Produto salvo, mas houve erro complementar: ${error.message}`);
-    }
-
-    setSyncing(false);
-  }
-
-  function updateProduct(id, field, value) {
-    const textFields = ["nome", "sku", "status", "dataVenda"];
-    setProducts((prev) => prev.map((product) => product.id === id ? { ...product, [field]: textFields.includes(field) ? value : value === "" ? "" : Number(value) } : product));
-  }
-
-  async function sellProduct(id) {
-    if (!permissions.canSell) return alert("Seu perfil não permite marcar venda.");
-    const target = products.find((p) => p.id === id);
-    if (!target) return;
-
-    const soldAt = new Date().toISOString();
-    const next = { ...target, status: "Vendido", vendaReal: target.vendaReal || target.vendaEsperada, dataVenda: soldAt };
-    const calc = productMath(next);
-
-    setProducts((prev) => prev.map((p) => (p.id === id ? next : p)));
-
-    if (supabase) {
-      await supabase.from("produtos").update({ status: "Vendido", status_venda: "A", venda_real: Number(next.vendaReal || 0), lucro_real: calc.lucroReal, data_venda: soldAt }).eq("id", id);
-    }
-  }
-
-
-  async function cancelSale(id) {
-    if (!permissions.canSell) return alert("Seu perfil não permite cancelar vendas.");
-
-    const target = products.find((p) => p.id === id);
-    if (!target) return;
-
-    const confirmCancel = window.confirm("Deseja cancelar esta venda? Ela não será somada no Dashboard, Relatórios, Financeiro e Calendário.");
-    if (!confirmCancel) return;
-
-    if (supabase) {
-      const { error } = await supabase
-        .from("produtos")
-        .update({
-          status_venda: "X",
-          status: "Em estoque",
-          venda_real: null,
-          lucro_real: null,
-          data_venda: null,
-        })
-        .eq("id", id);
-
-      if (error) return alert(`Erro ao cancelar venda: ${error.message}`);
-    }
-
-    setProducts((prev) =>
-      prev.map((p) =>
-        p.id === id
-          ? { ...p, statusVenda: "X", status: "Em estoque", vendaReal: "", dataVenda: "" }
-          : p
-      )
-    );
-  }
-
-  async function saveEdit() {
-    if (!permissions.canEdit) return alert("Seu perfil não permite editar produtos.");
-    if (!editingProduct || !supabase) return;
-
-    setSyncing(true);
-    setSyncMessage("Salvando alterações no Supabase...");
-
-    const calc = productMath(editingProduct);
-    const { error } = await supabase.from("produtos").update({
-      nome: editingProduct.nome,
-      sku: editingProduct.sku,
-      preco_compra: Number(editingProduct.compra || 0),
-      chip: 0,
-      frete: 0,
-      manutencao: 0,
-      outros: 0,
-      custo_final: calc.custoFinal,
-      venda_esperada: Number(editingProduct.vendaEsperada || 0),
-      venda_real: editingProduct.vendaReal === "" ? null : Number(editingProduct.vendaReal || 0),
-      lucro_esperado: calc.lucroEsperado,
-      lucro_real: editingProduct.status === "Vendido" ? calc.lucroReal : null,
-      status: editingProduct.status || "Em estoque",
-      estoque_minimo: Number(editingProduct.estoqueMinimo || 1),
-      quantidade: Number(editingProduct.quantidade || 1),
-      data_venda: editingProduct.status === "Vendido" ? (editingProduct.dataVenda || new Date().toISOString()) : null,
-    }).eq("id", editingProduct.id);
-
-    if (error) {
-      setSyncMessage(`Erro ao editar: ${error.message}`);
-      setSyncing(false);
-      return;
-    }
-
-    const { data: oldRows } = await supabase.from("produto_imagens").select("imagem_url").eq("produto_id", editingProduct.id);
-    const oldUrls = (oldRows || []).map((row) => row.imagem_url);
-    const keptExistingUrls = (editingProduct.imagens || []).filter((img) => typeof img === "string");
-    const removedUrls = oldUrls.filter((url) => !keptExistingUrls.includes(url));
-    for (const url of removedUrls) await deleteImageFromStorageIfNeeded(url);
-
-    await supabase.from("produto_imagens").delete().eq("produto_id", editingProduct.id);
-    const finalUrls = await uploadImagesAndSaveRows(editingProduct.id, editingProduct.imagens || []);
-    await saveProductCosts(editingProduct.id, editingProduct.custosExtras || []);
-
-    setProducts((prev) => prev.map((item) => item.id === editingProduct.id ? { ...editingProduct, imagens: finalUrls } : item));
-    setEditingProduct(null);
-    setSyncMessage("Produto editado com sucesso.");
-    setSyncing(false);
-  }
-
-  async function removeProduct(id) {
-    if (!permissions.canDelete) {
-      alert("Seu perfil não permite excluir produtos.");
-      return false;
-    }
-
-    const confirmDelete = window.confirm("Deseja inativar este produto? O registro será mantido no banco com status X.");
-    if (!confirmDelete) return false;
-
-    if (supabase) {
-      const { error } = await supabase.from("produtos").update({ status_registro: "X" }).eq("id", id);
-      if (error) {
-        alert(`Erro ao inativar produto: ${error.message}`);
-        return false;
-      }
-    }
-
-    setProducts((prev) => prev.map((item) => item.id === id ? { ...item, statusRegistro: "X" } : item));
-    return true;
-  }
-
-  async function deleteEditingProduct() {
-    if (!editingProduct) return;
-    const success = await removeProduct(editingProduct.id);
-    if (success) setEditingProduct(null);
-  }
-
-  async function restoreProduct(id) {
-    if (supabase) await supabase.from("produtos").update({ status_registro: "A" }).eq("id", id);
-    setProducts((prev) => prev.map((item) => item.id === id ? { ...item, statusRegistro: "A" } : item));
-  }
-
-  async function removeExtraCost(id) {
-    if (supabase) await supabase.from("custos_extras").delete().eq("id", id);
-    setExtraCosts((prev) => prev.filter((item) => item.id !== id));
-  }
-
-  async function addExtraCost() {
-    if (!extraCost.descricao || !extraCost.valor) return;
-
-    if (supabase) {
-      const { data } = await supabase
-        .from("custos_extras")
-        .insert({
-          descricao: extraCost.descricao,
-          valor: Number(extraCost.valor || 0),
-          estoque_atual: Number(extraCost.estoqueAtual || 0),
-          estoque_minimo: Number(extraCost.estoqueMinimo || 0),
-        })
-        .select()
-        .single();
-
-      if (data) {
-        setExtraCosts((prev) => [{
-          id: data.id,
-          descricao: data.descricao,
-          valor: Number(data.valor || 0),
-          data: data.criado_em ? formatDateBR(data.criado_em) : "Hoje",
-          estoqueAtual: Number(data.estoque_atual || 0),
-          estoqueMinimo: Number(data.estoque_minimo || 0),
-        }, ...prev]);
-      }
-    }
-
-    setExtraCost({ descricao: "", valor: "", data: "", estoqueAtual: "", estoqueMinimo: "" });
-  }
-
-  function exportBackup() {
-    if (!permissions.canBackup) return alert("Seu perfil não permite backup.");
-    const backup = { gerado_em: new Date().toISOString(), versao: APP_VERSION, produtos: activeProducts, produtos_inativos: inactiveProducts, custos_extras: extraCosts, resumo: summary };
-    const blob = new Blob([JSON.stringify(backup, null, 2)], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const element = document.createElement("a");
-    element.href = url;
-    element.download = `backup-jogador1-games-v${APP_VERSION}-${new Date().toISOString().slice(0, 10)}.json`;
-    element.click();
-    URL.revokeObjectURL(url);
-  }
-
-  function exportPdf() {
-    window.print();
-  }
-
-  async function updateProfileRole(profileId, perfil) {
-    if (!permissions.canUsers) return alert("Seu perfil não permite alterar usuários.");
-    await supabase.from("usuarios_perfis").update({ perfil }).eq("id", profileId);
-    loadProfiles();
-  }
-
-  function renderModule() {
-    if (activeMenu === "Produtos") {
-      return (
-        <ModuleCard title="Produtos" subtitle="Cadastro, edição, imagem e controle de estoque.">
-          <div className="module-actions">{permissions.canCreate && <button onClick={() => setNewProductOpen(true)}><Plus size={17} /> Cadastrar Produto</button>}</div>
-          <ProductsTable products={stockProducts} updateProduct={updateProduct} sellProduct={sellProduct} editProduct={setEditingProduct} removeProduct={removeProduct} setExpandedImage={setExpandedImage} permissions={permissions} />
-        </ModuleCard>
-      );
-    }
-
-    if (activeMenu === "Vendas") {
-      return (
-        <ModuleCard title="Vendas" subtitle="Produtos vendidos, valor realizado e lucro real.">
-          <SimpleTable headers={["Produto", "Data", "Venda real", "Custo", "Lucro real", "Ações"]}>
-            {soldProducts.map((p) => {
-              const calc = productMath(p);
-              return (
-                <tr key={p.id}>
-                  <td>
-                    <div className="sale-product-cell">
-                      <button className="sale-thumb" onClick={() => setExpandedImage(imageSrc(p.imagens?.[0]))}>
-                        {p.imagens?.[0] ? <img src={imageSrc(p.imagens[0])} alt={p.nome} /> : <ImagePlus size={18} />}
-                      </button>
-                      <strong>{p.nome}</strong>
-                    </div>
-                  </td>
-                  <td>{formatDateBR(productSaleDate(p))}</td>
-                  <td className="green">{currency(p.vendaReal)}</td>
-                  <td>{currency(calc.custoFinal)}</td>
-                  <td className="green strong">{currency(calc.lucroReal)}</td>
-                  <td>
-                    {permissions.canSell && (
-                      <button className="icon-btn danger" title="Cancelar venda" onClick={() => cancelSale(p.id)}>
-                        <X size={18} />
-                      </button>
-                    )}
-                  </td>
-                </tr>
-              );
-            })}
-          </SimpleTable>
-        </ModuleCard>
-      );
-    }
-
-    if (activeMenu === "Compras") {
-      return (
-        <ModuleCard title="Compras" subtitle="Produtos comprados e capital aplicado.">
-          <SimpleTable headers={["Produto", "SKU", "Data", "Compra", "Custos agregados", "Custo final", "Status"]}>
-            {activeProducts.map((p) => {
-              const calc = productMath(p);
-              return <tr key={p.id}><td>{p.nome}</td><td>{p.sku}</td><td>{formatDateBR(p.dataCompra)}</td><td>{currency(p.compra)}</td><td>{currency(calc.custosExtras)}</td><td className="strong">{currency(calc.custoFinal)}</td><td><Status status={p.status} /></td></tr>;
-            })}
-          </SimpleTable>
-        </ModuleCard>
-      );
-    }
-
-    if (activeMenu === "Custos Extras") {
-      return (
-        <ModuleCard title="Custos Extras" subtitle="Cadastre itens agregáveis ao custo dos produtos com controle de estoque.">
-          <div className="extra-cost-form extra-cost-form-v4">
-            <input placeholder="Descrição. Ex: Chip, Película, Frete" value={extraCost.descricao} onChange={(e) => setExtraCost({ ...extraCost, descricao: e.target.value })} />
-            <input type="number" placeholder="Valor" value={extraCost.valor} onChange={(e) => setExtraCost({ ...extraCost, valor: e.target.value })} />
-            <input type="number" placeholder="Estoque atual" value={extraCost.estoqueAtual} onChange={(e) => setExtraCost({ ...extraCost, estoqueAtual: e.target.value })} />
-            <input type="number" placeholder="Estoque mínimo" value={extraCost.estoqueMinimo} onChange={(e) => setExtraCost({ ...extraCost, estoqueMinimo: e.target.value })} />
-            <input type="date" value={extraCost.data} onChange={(e) => setExtraCost({ ...extraCost, data: e.target.value })} />
-            <button onClick={addExtraCost}><Plus size={17} /></button>
-          </div>
-          <SimpleTable headers={["Descrição", "Data", "Valor", "Estoque atual", "Estoque mínimo", ""]}>
-            {extraCosts.map((cost) => (
-              <tr key={cost.id} className={Number(cost.estoqueAtual || 0) <= Number(cost.estoqueMinimo || 0) ? "low-stock-row" : ""}>
-                <td>{cost.descricao}</td>
-                <td>{cost.data}</td>
-                <td className="red">{currency(cost.valor)}</td>
-                <td className="green strong">{Number(cost.estoqueAtual || 0)}</td>
-                <td>{Number(cost.estoqueMinimo || 0)}</td>
-                <td className="right"><button className="icon-btn danger" onClick={() => removeExtraCost(cost.id)}><Trash2 size={18} /></button></td>
-              </tr>
-            ))}
-          </SimpleTable>
-        </ModuleCard>
-      );
-    }
-
-    if (activeMenu === "Relatórios") {
-      return (
-        <div className="report-layout">
-          <ModuleCard title="Relatórios" subtitle="Visão consolidada da operação.">
-            <div className="module-actions report-actions"><button onClick={exportPdf}><Download size={17} /> Gerar PDF</button><button onClick={exportBackup}><Download size={17} /> Backup JSON</button></div>
-            <div className="report-grid"><MiniReport title="Estoque" value={currency(summary.valorEstoque)} desc="Capital parado" /><MiniReport title="Vendas" value={currency(summary.receitaReal)} desc="Receita realizada" /><MiniReport title="Lucro real" value={currency(summary.lucroReal)} desc="Soma dos lucros reais das vendas válidas" /><MiniReport title="Retorno sobre Capital" value={`${roiPercent.toFixed(2).replace(".", ",")}%`} desc={`A cada R$ 100 investidos, retornaram R$ ${roiPercent.toFixed(2).replace(".", ",")} de lucro`} /><MiniReport title="Produtos vendidos" value={soldProducts.length} desc="Histórico de vendas" /></div>
-            <CostDistribution costs={costDistribution} summary={summary} />
-          </ModuleCard>
-          <ModuleCard title="Gráficos financeiros" subtitle="Indicadores visuais"><FinanceCharts summary={summary} /></ModuleCard>
-          <ModuleCard title="Histórico mensal" subtitle="Fechamentos por mês"><MonthlyHistory data={monthlyHistory} /></ModuleCard><ModuleCard title="Movimentações por data" subtitle="Compras e vendas registradas"><CalendarEventList events={calendarEvents} /></ModuleCard>
-        </div>
-      );
-    }
-
-    if (activeMenu === "Financeiro") {
-      if (!permissions.canFinancial) return <NoPermission />;
-      return <ModuleCard title="Financeiro" subtitle="Resumo do caixa, lucro e resultado das vendas."><div className="two-columns"><FinancialSummary summary={summary} /><ModuleCard title="Caixa Operacional" subtitle="Resumo rápido"><Line label="Receita Real" value={currency(summary.receitaReal)} good /><Line label="Custo dos vendidos" value={`-${currency(summary.custoVendidos)}`} bad /><Line label="Lucro Real" value={currency(summary.lucroReal)} good /><Line label="ROI" value={`${roiPercent.toFixed(2).replace(".", ",")}%`} good /></ModuleCard></div></ModuleCard>;
-    }
-
-    if (activeMenu === "Usuários") {
-      if (!permissions.canUsers) return <NoPermission />;
-      return <ModuleCard title="Usuários e Permissões" subtitle="Controle de acesso por perfil."><SimpleTable headers={["Nome", "E-mail", "Perfil", "Status"]}>{profiles.map((p) => <tr key={p.id || p.user_id}><td>{p.nome || "-"}</td><td>{p.email}</td><td><select value={p.perfil} onChange={(e) => updateProfileRole(p.id, e.target.value)}><option value="administrador">Administrador</option><option value="funcionario">Funcionário</option><option value="visualizacao">Visualização</option></select></td><td>{p.status || "A"}</td></tr>)}</SimpleTable></ModuleCard>;
-    }
-
-    if (activeMenu === "Manutenção") {
-      return (
-        <div className="maintenance-grid">
-          <ModuleCard title="Configurações visuais" subtitle="Controle das animações de fundo.">
-            <div className="settings-row">
-              <label>Animações de fundo</label>
-              <select value={animationMode} onChange={(e) => setAnimationMode(e.target.value)}>
-                <option value="desativado">Desativado</option>
-                <option value="discreto">Discreto</option>
-                <option value="gamer">Gamer</option>
-              </select>
-            </div>
-          </ModuleCard>
-
-          <ModuleCard title="Produtos inativos" subtitle="Produtos com status de registro X.">
-            <SimpleTable headers={["Produto", "SKU", "Status", "Ação"]}>{inactiveProducts.map((p) => <tr key={p.id}><td>{p.nome}</td><td>{p.sku}</td><td>X</td><td><button onClick={() => restoreProduct(p.id)}>Restaurar</button></td></tr>)}</SimpleTable>
-          </ModuleCard>
-        </div>
-      );
-    }
-
-    return (
-      <div className="dashboard-sales-management">
-        <ModuleCard title="Gerenciamento de Vendas" subtitle="Produtos disponíveis para venda, custos, preço esperado e lucro.">
-          <div className="module-actions dashboard-sales-actions">{permissions.canCreate && <button onClick={() => setNewProductOpen(true)}><Plus size={17} /> Novo Produto</button>}</div>
-          <ProductsTable products={stockProducts} updateProduct={updateProduct} sellProduct={sellProduct} editProduct={setEditingProduct} removeProduct={removeProduct} setExpandedImage={setExpandedImage} permissions={permissions} />
-        </ModuleCard>
-      </div>
-    );  }
-
-  if (loadingAuth) return <div className="login-screen"><div className="login-card"><h1>Jogador1 Games</h1><p>Carregando sessão...</p></div></div>;
-
-  if (!user) {
-    return (
-      <div className="login-screen">
-        <div className="login-card">
-          <div className="login-logo"><Gamepad2 size={50} /></div>
-          <h1>Jogador<span>1</span> Games</h1>
-          <p>Sistema Premium de Estoque</p>
-          <input type="email" placeholder="E-mail" value={email} onChange={(e) => setEmail(e.target.value)} />
-          <input type="password" placeholder="Senha" value={password} onChange={(e) => setPassword(e.target.value)} />
-          {authError && <small className="auth-error">{authError}</small>}
-          <button onClick={signIn}>Entrar</button>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="app">
-      <BackgroundAnimations mode={animationMode} />
-      {expandedImage && <div className="image-overlay" onClick={() => setExpandedImage(null)}><img src={expandedImage} alt="Produto ampliado" /></div>}
-      {calendarOpen && <CalendarModal events={calendarEvents} onClose={() => setCalendarOpen(false)} />}
-      {alertsOpen && <AlertsModal alerts={systemAlerts} unreadKeys={unreadAlerts.map((alert) => alert.key)} onClose={() => setAlertsOpen(false)} onMarkSeen={markAlertAsSeen} onMarkAll={markAllAlertsAsSeen} />}
-      {versionOpen && <VersionModal onClose={() => setVersionOpen(false)} />}
-
-      {newProductOpen && <ProductModal title="Cadastrar novo produto" product={newProduct} setProduct={setNewProduct} onClose={() => setNewProductOpen(false)} onSave={addProduct} saveText="Adicionar ao estoque" importImages={importNewImages} removeImage={(index) => setNewProduct((prev) => ({ ...prev, imagens: prev.imagens.filter((_, i) => i !== index) }))} setExpandedImage={setExpandedImage} extraCosts={extraCosts} />}
-
-      {editingProduct && <ProductModal title="Editar produto" product={editingProduct} setProduct={setEditingProduct} onClose={() => setEditingProduct(null)} onSave={saveEdit} onDelete={deleteEditingProduct} saveText="Salvar alterações" importImages={importEditImages} removeImage={(index) => setEditingProduct((prev) => ({ ...prev, imagens: prev.imagens.filter((_, i) => i !== index) }))} setExpandedImage={setExpandedImage} extraCosts={extraCosts} editing />}
-
-      <div className="layout">
-        <aside className="sidebar">
-          <div className="brand"><div className="brand-icon"><Gamepad2 size={54} /></div><h1>JOGADOR<span>1</span></h1><p>GAMES</p></div>
-          <nav>{menus.map(([label, Icon]) => <button key={label} type="button" onClick={() => setActiveMenu(label)} className={activeMenu === label ? "active" : ""}><Icon size={18} />{label}</button>)}</nav>
-          <div className="sidebar-profit"><p>Lucro real vendido</p><strong>{currency(summary.lucroReal)}</strong><small>Perfil: {profile?.perfil}</small></div>
-          <button className="logout-btn" onClick={signOut}><LogOut size={16} />Sair</button>
-        </aside>
-
-        <main className="content">
-          <header className="topbar">
-            <div className="topbar-title"><div className="topbar-icon"><LayoutDashboard size={24} /></div><div><h2>{activeMenu}</h2><p>Rotina ativa do sistema Jogador1 Games.</p><small>{syncing ? "Sincronizando..." : syncMessage}</small></div></div>
-            <div className="topbar-actions"><button className={unreadAlerts.length ? "alert-bell has-alerts" : "alert-bell"} onClick={() => setAlertsOpen(true)}><Bell size={19} />{unreadAlerts.length > 0 && <span>{unreadAlerts.length}</span>}</button><button className="date-pill" onClick={() => setCalendarOpen(true)}><CalendarDays size={17} /> {currentMonthLabel()}</button><div className="capital-pill"><p>Capital total</p><strong>{currency(summary.capitalInvestido)}</strong></div></div>
-          </header>
-
-          {showStats && <section className="stats"><Stat icon={Wallet} title="Capital Investido" value={currency(summary.capitalInvestido)} subtitle="Total aplicado" color="red" /><Stat icon={Boxes} title="Valor em Estoque" value={currency(summary.valorEstoque)} subtitle="Não vendidos" color="white" /><Stat icon={TrendingUp} title="Lucro Esperado" value={currency(summary.lucroEsperado)} subtitle="Venda prevista" color="green" /><Stat icon={DollarSign} title="Lucro Real" value={currency(summary.lucroReal)} subtitle="Vendas válidas" color="real-profit" /><Stat icon={TrendingUp} title="Retorno sobre Capital" value={`${roiPercent.toFixed(2).replace(".", ",")}%`} subtitle="Lucro sobre capital" color="green" /><Stat icon={Package} title="Produtos em Estoque" value={summary.produtosEstoque} subtitle="Disponíveis" color="amber" /></section>}
-
-          {renderModule()}
-          <footer className="version-footer">Atualizado com a versão {APP_VERSION}. <button onClick={() => setVersionOpen(true)}>Clique aqui e saiba as novidades.</button></footer>
-        </main>
-      </div>
-    </div>
-  );
-}
-
-function buildCalendarEvents(products) {
-  const map = new Map();
-  for (const p of products) {
-    const purchaseKey = dateKey(p.dataCompra);
-    if (purchaseKey) {
-      if (!map.has(purchaseKey)) map.set(purchaseKey, { date: purchaseKey, compras: [], vendas: [] });
-      map.get(purchaseKey).compras.push({ nome: p.nome, valor: Number(p.compra || 0) });
-    }
-
-    if (p.status === "Vendido") {
-      const saleKey = dateKey(productSaleDate(p));
-      if (saleKey) {
-        if (!map.has(saleKey)) map.set(saleKey, { date: saleKey, compras: [], vendas: [] });
-        map.get(saleKey).vendas.push({ nome: p.nome, valor: Number(p.vendaReal || 0) });
-      }
-    }
-  }
-  return Array.from(map.values()).sort((a, b) => b.date.localeCompare(a.date));
-}
-
-function ProductModal({ title, product, setProduct, onClose, onSave, onDelete, saveText, importImages, removeImage, setExpandedImage, extraCosts, editing }) {
-  const cost = productMath(product).custoFinal;
-  const profit = Number(product.vendaEsperada || 0) - cost;
-
-  function toggleExtraCost(costItem) {
-    const current = product.custosExtras || [];
-    const exists = current.some((item) => (item.custo_extra_id || item.id) === costItem.id);
-    if (exists) {
-      setProduct({ ...product, custosExtras: current.filter((item) => (item.custo_extra_id || item.id) !== costItem.id) });
-    } else {
-      if (Number(costItem.estoqueAtual || 0) <= 0) {
-        alert(`Estoque indisponível para: ${costItem.descricao}`);
-        return;
-      }
-      setProduct({ ...product, custosExtras: [...current, { custo_extra_id: costItem.id, descricao: costItem.descricao, valor: Number(costItem.valor || 0) }] });
-    }
-  }
-
-  return (
-    <div className="modal-backdrop">
-      <div className="product-modal">
-        <div className="modal-header"><div><h2>{title}</h2><p>Preencha a compra, selecione custos extras e importe até 6 imagens.</p></div><button onClick={onClose}><X size={18} /> Fechar</button></div>
-        <div className="modal-grid">
-          <div className="modal-left">
-            <FormSection title="Identificação"><div className="form-grid"><input value={product.nome} onChange={(e) => setProduct({ ...product, nome: e.target.value })} placeholder="Nome do produto" /><input value={product.sku} onChange={(e) => setProduct({ ...product, sku: e.target.value })} placeholder="SKU / Código interno" /></div></FormSection>
-            <FormSection title="Estoque"><div className="form-grid"><input type="number" value={product.quantidade} onChange={(e) => setProduct({ ...product, quantidade: e.target.value })} placeholder="Quantidade" /><input type="number" value={product.estoqueMinimo} onChange={(e) => setProduct({ ...product, estoqueMinimo: e.target.value })} placeholder="Estoque mínimo" /></div></FormSection>
-            <FormSection title="Custo do produto"><div className="form-grid single"><input type="number" value={product.compra} onChange={(e) => setProduct({ ...product, compra: e.target.value })} placeholder="Preço de compra" /></div><ExtraCostSelector extraCosts={extraCosts} selected={product.custosExtras || []} toggleExtraCost={toggleExtraCost} /></FormSection>
-            <FormSection title="Venda"><div className="form-grid"><input type="number" value={product.vendaEsperada} onChange={(e) => setProduct({ ...product, vendaEsperada: e.target.value })} placeholder="Valor esperado de venda" />{editing && <input type="number" value={product.vendaReal} onChange={(e) => setProduct({ ...product, vendaReal: e.target.value })} placeholder="Venda real" />}</div></FormSection>
-          </div>
-          <div className="modal-right"><FormSection title="Imagens"><input className="file-input" type="file" accept="image/*" multiple onChange={importImages} /><p className="muted">Você pode importar em etapas, até completar 6 imagens.</p><ImagesGrid images={product.imagens} removeImage={removeImage} setExpandedImage={setExpandedImage} /></FormSection><div className="profit-box"><p>Custo final estimado</p><strong>{currency(cost)}</strong><p>Lucro esperado</p><strong className="green">{currency(profit)}</strong></div><div className="modal-action-buttons">{editing && onDelete && <button onClick={onDelete} className="delete-product-button"><Trash2 size={18} /> Excluir produto</button>}<button onClick={onSave} className="full-button"><Plus size={18} /> {saveText}</button></div></div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function ExtraCostSelector({ extraCosts, selected, toggleExtraCost }) {
-  const [open, setOpen] = useState(false);
-
-  return (
-    <div className="extra-selector">
-      <button type="button" className="extra-open-button" onClick={() => setOpen(true)}>
-        <Plus size={16} /> Custos extras
-      </button>
-
-      {!selected.length && <p className="muted extra-hint">Nenhum custo extra aplicado neste produto.</p>}
-
-      {!!selected.length && (
-        <div className="selected-extra-list">
-          {selected.map((item) => {
-            const key = item.custo_extra_id || item.id;
-            return (
-              <span key={key} className="selected-extra-chip">
-                <span>{item.descricao} • {currency(item.valor)}</span>
-                <button
-                  type="button"
-                  className="selected-extra-remove"
-                  title="Remover custo deste produto"
-                  onClick={() => toggleExtraCost({ id: key })}
-                >
-                  <Trash2 size={13} />
-                </button>
-              </span>
-            );
-          })}
-        </div>
-      )}
-
-      {open && (
-        <div className="nested-modal-backdrop">
-          <div className="extra-cost-modal">
-            <div className="modal-header">
-              <div>
-                <h2>Selecionar custos extras</h2>
-                <p>Escolha apenas os custos que serão agregados a este produto.</p>
-              </div>
-              <button type="button" onClick={() => setOpen(false)}><X size={18} /> Fechar</button>
-            </div>
-
-            {!extraCosts.length && <p className="muted">Cadastre custos no menu Custos Extras para usar aqui.</p>}
-
-            <div className="extra-cost-options">
-              {extraCosts.map((cost) => {
-                const checked = selected.some((item) => (item.custo_extra_id || item.id) === cost.id);
-                return (
-                  <button
-                    key={cost.id}
-                    type="button"
-                    className={checked ? "extra-option selected" : "extra-option"}
-                    onClick={() => toggleExtraCost(cost)}
-                  >
-                    <span>{checked ? "✓" : "+"}</span>
-                    <div>
-                      <strong>{cost.descricao}</strong>
-                      <small>{currency(cost.valor)} • Estoque: {Number(cost.estoqueAtual || 0)}</small>
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
+@media print {
+  .sidebar, .topbar-actions, .module-actions, .logout-btn, .version-footer { display: none !important; }
+  .layout { display: block; }
+  body, .app, .content { background: #fff !important; color: #000 !important; }
+  .module-card, .stat-card { box-shadow: none; border: 1px solid #ccc; color: #000; background: #fff; }
+  .module-card *,.stat-card * { color: #000 !important; }
 }
 
 
-function AlertsModal({ alerts, unreadKeys, onClose, onMarkSeen, onMarkAll }) {
-  return (
-    <div className="modal-backdrop">
-      <div className="version-modal alerts-modal">
-        <div className="modal-header">
-          <div>
-            <h2>Central de alertas</h2>
-            <p>{unreadKeys.length} alerta(s) não visualizado(s).</p>
-          </div>
-          <button onClick={onClose}><X size={18} /> Fechar</button>
-        </div>
-
-        <div className="module-actions">
-          {!!alerts.length && <button onClick={onMarkAll}><CheckCircle size={17} /> Marcar todos como vistos</button>}
-        </div>
-
-        {!alerts.length && <p className="muted">Nenhum alerta no momento.</p>}
-
-        <div className="alerts-list">
-          {alerts.map((alert) => {
-            const unread = unreadKeys.includes(alert.key);
-            return (
-              <div key={alert.key} className={unread ? "alert-item unread" : "alert-item"}>
-                <div>
-                  <strong>{alert.title}</strong>
-                  <p>{alert.message}</p>
-                </div>
-                {unread ? (
-                  <button onClick={() => onMarkSeen(alert.key)}>Marcar como visto</button>
-                ) : (
-                  <span className="seen-pill">Visto</span>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      </div>
-    </div>
-  );
+/* Jogador1 Games - Complementos v3.1 */
+.date-pill {
+  border: 1px solid rgba(255,255,255,.1);
+  background: rgba(0,0,0,.5);
+  color: #e5e7eb;
+}
+.products-table {
+  min-width: 1450px;
+}
+.form-grid.single {
+  grid-template-columns: 1fr;
+}
+.extra-selector {
+  margin-top: 14px;
+  display: grid;
+  gap: 10px;
+}
+.extra-selector-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #fff;
+  font-weight: 800;
+}
+.extra-selector-list {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.extra-chip {
+  background: rgba(255,255,255,.08);
+  border: 1px solid rgba(255,255,255,.12);
+  color: #e5e7eb;
+  padding: 8px 10px;
+  border-radius: 999px;
+  font-size: 13px;
+}
+.extra-chip.selected {
+  background: rgba(34,197,94,.14);
+  border-color: rgba(34,197,94,.35);
+  color: #86efac;
+}
+.calendar-modal {
+  width: min(720px, 100%);
+}
+.calendar-event-list {
+  display: grid;
+  gap: 12px;
+}
+.calendar-day {
+  padding: 14px;
+  border: 1px solid rgba(255,255,255,.1);
+  background: rgba(0,0,0,.35);
+  border-radius: 16px;
+}
+.calendar-day h3 {
+  margin: 0 0 10px;
+  color: #fff;
+}
+.calendar-day p {
+  margin: 6px 0;
+  color: #d4d4d8;
+}
+.stock-grid {
+  width: 130px;
+}
+@media print {
+  .calendar-modal, .modal-backdrop, .image-overlay { display: none !important; }
 }
 
-function BackgroundAnimations({ mode }) {
-  if (mode === "desativado") return null;
 
-  const isGamer = mode === "gamer";
-
-  return (
-    <div className={`background-animations ${isGamer ? "gamer" : "discreto"}`} aria-hidden="true">
-      <span className="mascot mascot-controller">
-        <i className="controller-body" />
-        <i className="controller-pad" />
-        <i className="controller-buttons" />
-      </span>
-
-      <span className="mascot mascot-orb">
-        <i className="orb-core" />
-        <i className="orb-spark spark-one" />
-        <i className="orb-spark spark-two" />
-      </span>
-
-      <span className="mascot mascot-dragon">
-        <i className="dragon-head" />
-        <i className="dragon-wing" />
-        <i className="dragon-fire" />
-      </span>
-
-      <span className="mascot mascot-cart">
-        <i className="cart-body" />
-        <i className="cart-label" />
-      </span>
-
-      {isGamer && (
-        <>
-          <span className="mascot mascot-coin">
-            <i />
-          </span>
-          <span className="mascot mascot-star-pixel">
-            <i />
-          </span>
-        </>
-      )}
-    </div>
-  );
+/* Jogador1 Games - Ajustes v3.1.1 */
+.extra-open-button {
+  width: fit-content;
+  background: transparent;
+  color: #fff;
+  padding: 0;
+  border-radius: 0;
+  font-weight: 900;
 }
 
-function MonthlyHistory({ data }) {
-  if (!data.length) return <p className="muted">Nenhum histórico mensal disponível ainda.</p>;
-
-  return (
-    <SimpleTable headers={["Mês", "Capital", "Faturamento", "Lucro Real", "ROI", "Vendidos"]}>
-      {data.map((row) => (
-        <tr key={row.key}>
-          <td>{row.label.charAt(0).toUpperCase() + row.label.slice(1)}</td>
-          <td>{currency(row.capital)}</td>
-          <td className="green">{currency(row.faturamento)}</td>
-          <td className="green strong">{currency(row.lucroReal)}</td>
-          <td>{row.roi.toFixed(2).replace(".", ",")}%</td>
-          <td>{row.vendidos}</td>
-        </tr>
-      ))}
-    </SimpleTable>
-  );
+.extra-open-button:hover {
+  color: #f87171;
 }
 
-function CalendarModal({ events, onClose }) {
-  const [viewDate, setViewDate] = useState(new Date());
-  const [selectedDate, setSelectedDate] = useState(dateKey(new Date()));
+.extra-hint {
+  margin: 0;
+  font-size: 13px;
+}
 
-  const eventsByDate = useMemo(() => {
-    const map = new Map();
-    events.forEach((event) => map.set(event.date, event));
-    return map;
-  }, [events]);
+.selected-extra-list {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
 
-  const year = viewDate.getFullYear();
-  const month = viewDate.getMonth();
-  const firstDay = new Date(year, month, 1);
-  const lastDay = new Date(year, month + 1, 0);
-  const startOffset = firstDay.getDay();
-  const days = [];
+.selected-extra-chip {
+  display: inline-flex;
+  padding: 7px 10px;
+  border-radius: 999px;
+  background: rgba(34, 197, 94, 0.12);
+  border: 1px solid rgba(34, 197, 94, 0.28);
+  color: #86efac;
+  font-size: 12px;
+  font-weight: 800;
+}
 
-  for (let i = 0; i < startOffset; i++) days.push(null);
-  for (let day = 1; day <= lastDay.getDate(); day++) days.push(new Date(year, month, day));
+.nested-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: grid;
+  place-items: center;
+  background: rgba(0, 0, 0, 0.72);
+  backdrop-filter: blur(4px);
+  padding: 24px;
+}
 
-  const monthLabel = viewDate.toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
-  const selectedEvent = eventsByDate.get(selectedDate);
+.extra-cost-modal {
+  width: min(560px, 100%);
+  max-height: 80vh;
+  overflow-y: auto;
+  padding: 22px;
+  border-radius: 26px;
+  background: #111114;
+  border: 1px solid rgba(255,255,255,.12);
+  box-shadow: 0 0 60px rgba(220, 38, 38, 0.22);
+}
 
-  function changeMonth(delta) {
-    setViewDate(new Date(year, month + delta, 1));
+.extra-cost-options {
+  display: grid;
+  gap: 10px;
+}
+
+.extra-option {
+  justify-content: flex-start;
+  width: 100%;
+  padding: 12px;
+  border-radius: 16px;
+  background: rgba(0,0,0,.38);
+  border: 1px solid rgba(255,255,255,.1);
+  color: #fff;
+  text-align: left;
+}
+
+.extra-option > span {
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  border-radius: 10px;
+  background: rgba(255,255,255,.08);
+  flex-shrink: 0;
+}
+
+.extra-option div {
+  display: grid;
+  gap: 2px;
+}
+
+.extra-option small {
+  color: #a1a1aa;
+  font-weight: 700;
+}
+
+.extra-option.selected {
+  background: rgba(34,197,94,.12);
+  border-color: rgba(34,197,94,.35);
+}
+
+.extra-option.selected > span,
+.extra-option.selected small {
+  color: #86efac;
+}
+
+.visual-calendar-modal {
+  width: min(760px, 100%);
+}
+
+.calendar-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 14px;
+  padding: 12px;
+  border-radius: 18px;
+  background: rgba(0,0,0,.35);
+  border: 1px solid rgba(255,255,255,.08);
+}
+
+.calendar-toolbar strong {
+  font-size: 18px;
+}
+
+.calendar-toolbar button {
+  width: 42px;
+  height: 38px;
+  padding: 0;
+  border-radius: 12px;
+  background: rgba(255,255,255,.08);
+}
+
+.calendar-legend {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+  color: #d4d4d8;
+  font-size: 13px;
+}
+
+.calendar-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.legend-dot,
+.calendar-markers i {
+  width: 9px;
+  height: 9px;
+  border-radius: 999px;
+  display: inline-block;
+}
+
+.legend-dot.purchase,
+.calendar-markers i.purchase {
+  background: #ef4444;
+}
+
+.legend-dot.sale,
+.calendar-markers i.sale {
+  background: #22c55e;
+}
+
+.visual-calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.calendar-weekday {
+  text-align: center;
+  color: #a1a1aa;
+  font-weight: 900;
+  font-size: 13px;
+  padding: 8px 0;
+}
+
+.calendar-cell {
+  min-height: 72px;
+  border-radius: 16px;
+  background: rgba(0,0,0,.34);
+  border: 1px solid rgba(255,255,255,.08);
+  color: #fff;
+  padding: 10px;
+  display: grid;
+  align-content: space-between;
+}
+
+.calendar-cell.empty {
+  background: transparent;
+  border: 0;
+}
+
+.calendar-cell.has-purchase {
+  border-color: rgba(239,68,68,.42);
+  background: rgba(127,29,29,.22);
+}
+
+.calendar-cell.has-sale {
+  border-color: rgba(34,197,94,.42);
+  background: rgba(20,83,45,.22);
+}
+
+.calendar-cell.has-purchase.has-sale {
+  background: linear-gradient(135deg, rgba(127,29,29,.35), rgba(20,83,45,.35));
+  border-color: rgba(255,255,255,.22);
+}
+
+.calendar-cell.selected {
+  outline: 2px solid #38bdf8;
+  outline-offset: 2px;
+}
+
+.calendar-cell strong {
+  justify-self: start;
+}
+
+.calendar-markers {
+  display: inline-flex;
+  gap: 5px;
+  justify-self: end;
+}
+
+.calendar-details {
+  padding: 16px;
+  border-radius: 18px;
+  background: rgba(0,0,0,.35);
+  border: 1px solid rgba(255,255,255,.08);
+}
+
+.calendar-details h3 {
+  margin: 0 0 10px;
+}
+
+.calendar-detail {
+  margin: 8px 0;
+  color: #d4d4d8;
+}
+
+.calendar-detail.purchase strong {
+  color: #f87171;
+}
+
+.calendar-detail.sale strong {
+  color: #86efac;
+}
+
+@media (max-width: 640px) {
+  .calendar-cell {
+    min-height: 54px;
+    padding: 7px;
   }
 
-  return (
-    <div className="modal-backdrop">
-      <div className="version-modal calendar-modal visual-calendar-modal">
-        <div className="modal-header">
-          <div>
-            <h2>Calendário de movimentações</h2>
-            <p>Compras em vermelho e vendas em verde.</p>
-          </div>
-          <button onClick={onClose}><X size={18} /> Fechar</button>
-        </div>
-
-        <div className="calendar-toolbar">
-          <button type="button" onClick={() => changeMonth(-1)}>‹</button>
-          <strong>{monthLabel.charAt(0).toUpperCase() + monthLabel.slice(1)}</strong>
-          <button type="button" onClick={() => changeMonth(1)}>›</button>
-        </div>
-
-        <div className="calendar-legend">
-          <span><i className="legend-dot purchase" /> Compra / despesa</span>
-          <span><i className="legend-dot sale" /> Venda / receita</span>
-        </div>
-
-        <div className="calendar-grid visual-calendar-grid">
-          {["D", "S", "T", "Q", "Q", "S", "S"].map((dayName, index) => (
-            <div key={`${dayName}-${index}`} className="calendar-weekday">{dayName}</div>
-          ))}
-
-          {days.map((day, index) => {
-            if (!day) return <div key={`empty-${index}`} className="calendar-cell empty" />;
-            const key = dateKey(day);
-            const event = eventsByDate.get(key);
-            const hasPurchase = !!event?.compras?.length;
-            const hasSale = !!event?.vendas?.length;
-            const isSelected = selectedDate === key;
-            const classes = ["calendar-cell"];
-            if (hasPurchase) classes.push("has-purchase");
-            if (hasSale) classes.push("has-sale");
-            if (isSelected) classes.push("selected");
-
-            return (
-              <button key={key} type="button" className={classes.join(" ")} onClick={() => setSelectedDate(key)}>
-                <strong>{day.getDate()}</strong>
-                <span className="calendar-markers">
-                  {hasPurchase && <i className="purchase" />}
-                  {hasSale && <i className="sale" />}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-
-        <div className="calendar-details">
-          <h3>{selectedDate ? formatDateBR(selectedDate) : "Selecione um dia"}</h3>
-          {!selectedEvent && <p className="muted">Nenhuma compra ou venda registrada neste dia.</p>}
-          {selectedEvent?.compras?.map((item, index) => (
-            <p key={`compra-${index}`} className="calendar-detail purchase"><strong>Compra:</strong> {item.nome} — {currency(item.valor)}</p>
-          ))}
-          {selectedEvent?.vendas?.map((item, index) => (
-            <p key={`venda-${index}`} className="calendar-detail sale"><strong>Venda:</strong> {item.nome} — {currency(item.valor)}</p>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
+  .calendar-toolbar strong {
+    font-size: 15px;
+  }
 }
 
-function CalendarEventList({ events }) {
-  if (!events.length) return <p className="muted">Nenhuma compra ou venda registrada ainda.</p>;
-  return <div className="calendar-event-list">{events.map((day) => <div key={day.date} className="calendar-day"><h3>{formatDateBR(day.date)}</h3>{day.compras.map((item, index) => <p key={`c-${index}`}><strong>Compra:</strong> {item.nome} — {currency(item.valor)}</p>)}{day.vendas.map((item, index) => <p key={`v-${index}`}><strong>Venda:</strong> {item.nome} — {currency(item.valor)}</p>)}</div>)}</div>;
+
+/* Jogador1 Games - v3.1.2 */
+.simple-table td:last-child .icon-btn {
+  margin-left: auto;
 }
 
-function VersionModal({ onClose }) {
-  return (
-    <div className="modal-backdrop">
-      <div className="version-modal">
-        <div className="modal-header">
-          <div>
-            <h2>Novidades da versão {APP_VERSION}</h2>
-            <p>Resumo da atualização 4.0.</p>
-          </div>
-          <button onClick={onClose}><X size={18} /> Fechar</button>
-        </div>
-        <ul>
-          <li>Controle de estoque atual e estoque mínimo em Custos Extras.</li>
-          <li>Consumo automático de estoque ao aplicar custo extra em produto.</li>
-          <li>Devolução automática ao remover custo extra do produto.</li>
-          <li>Bloqueio de custo extra sem estoque disponível.</li>
-          <li>Sino de alertas com contador e central de alertas.</li>
-          <li>Fechamento mensal visual com Dashboard focado no mês vigente.</li>
-          <li>Histórico mensal em Relatórios.</li>
-          <li>Dashboard mais limpo com Gerenciamento de Vendas centralizado.</li>
-          <li>Animações de fundo com modos Desativado, Discreto e Gamer.</li>
-          <li>Correção dos cálculos mensais para vendas legadas sem data de venda.</li>
-          <li>Sprites/mascotes próprios substituindo os emojis das animações.</li>
-          <li>Animações mais visíveis nos modos Discreto e Gamer.</li>
-        </ul>
-      </div>
-    </div>
-  );
+.simple-table .icon-btn.danger {
+  color: #f87171;
 }
 
-function FormSection({ title, children }) { return <div className="form-section"><h3>{title}</h3>{children}</div>; }
 
-function ImagesGrid({ images = [], removeImage, setExpandedImage }) {
-  const emptySlots = Math.max(0, 6 - images.length);
-  return <div className="images-grid">{images.map((image, index) => <div key={index} className="image-slot filled"><button type="button" onClick={() => setExpandedImage(imageSrc(image))}><img src={imageSrc(image)} alt={`Produto ${index + 1}`} /></button><button type="button" className="delete-image" onClick={() => removeImage(index)}><Trash2 size={14} /></button></div>)}{Array.from({ length: emptySlots }).map((_, index) => <div key={`empty-${index}`} className="image-slot empty"><ImagePlus size={22} /></div>)}</div>;
+/* Jogador1 Games - v3.1.3 */
+.sidebar nav {
+  padding-left: 0;
+  margin-left: 0;
 }
 
-function ProductsTable({ products, updateProduct, sellProduct, editProduct, removeProduct, setExpandedImage, permissions }) {
-  return (
-    <div className="table-wrap">
-      <table className="products-table">
-        <thead><tr><th>Produto</th><th>Estoque</th><th>Compra</th><th>Custos extras</th><th>Custo final</th><th>Venda esperada</th><th>Lucro esperado</th><th>Venda real</th><th>Lucro real</th><th>Status</th><th></th></tr></thead>
-        <tbody>{products.map((product) => { const calc = productMath(product); return <tr key={product.id} className={Number(product.quantidade || 0) <= Number(product.estoqueMinimo || 0) ? "low-stock-row" : ""}><td><div className="product-cell"><button className="thumb" onClick={() => setExpandedImage(imageSrc(product.imagens?.[0]))}>{product.imagens?.[0] ? <img src={imageSrc(product.imagens[0])} alt={product.nome} /> : <ImagePlus />}</button><div><input value={product.nome} onChange={(e) => updateProduct(product.id, "nome", e.target.value)} disabled={!permissions.canEdit} /><input value={product.sku} onChange={(e) => updateProduct(product.id, "sku", e.target.value)} disabled={!permissions.canEdit} /></div></div></td><td><div className="stock-grid"><input type="number" value={product.quantidade} onChange={(e) => updateProduct(product.id, "quantidade", e.target.value)} disabled={!permissions.canEdit} /><input type="number" value={product.estoqueMinimo} onChange={(e) => updateProduct(product.id, "estoqueMinimo", e.target.value)} disabled={!permissions.canEdit} /></div></td><td><input type="number" className="wide-money-input" value={product.compra} onChange={(e) => updateProduct(product.id, "compra", e.target.value)} disabled={!permissions.canEdit} /></td><td>{currency(calc.custosExtras)}</td><td className="strong">{currency(calc.custoFinal)}</td><td><input type="number" className="wide-money-input" value={product.vendaEsperada} onChange={(e) => updateProduct(product.id, "vendaEsperada", e.target.value)} disabled={!permissions.canEdit} /></td><td className="green strong">{currency(calc.lucroEsperado)}</td><td><input type="number" className="wide-money-input" value={product.vendaReal} onChange={(e) => updateProduct(product.id, "vendaReal", e.target.value)} placeholder="Após vender" disabled={!permissions.canEdit} /></td><td className="green strong">{product.status === "Vendido" ? currency(calc.lucroReal) : "-"}</td><td><Status status={product.status} /></td><td><div className="row-actions">{permissions.canSell && <button className="sold-btn" onClick={() => sellProduct(product.id)}>Vendido</button>}{permissions.canEdit && <button className="icon-btn" onClick={() => editProduct(product)}><Pencil size={18} /></button>}{permissions.canDelete && <button className="icon-btn danger" onClick={() => removeProduct(product.id)}><Trash2 size={18} /></button>}</div></td></tr>; })}</tbody>
-      </table>
-    </div>
-  );
+.sidebar nav button {
+  justify-content: flex-start;
+  padding-left: 18px;
+  min-height: 46px;
+  overflow: visible;
 }
 
-function ModuleCard({ title, subtitle, children }) { return <div className="module-card"><div className="module-header"><h3><Package size={20} /> {title}</h3><p>{subtitle}</p></div>{children}</div>; }
-function SimpleTable({ headers, children }) { return <div className="table-wrap"><table className="simple-table"><thead><tr>{headers.map((header) => <th key={header}>{header}</th>)}</tr></thead><tbody>{children}</tbody></table></div>; }
-function Stat({ title, value, subtitle, icon: Icon, color }) { return <div className={`stat-card ${color}`}><div><p>{title}</p><strong>{value}</strong><small>{subtitle}</small></div><span><Icon size={22} /></span></div>; }
-function Status({ status }) { if (status === "Vendido") return <span className="status sold">Vendido</span>; if (status === "Reservado") return <span className="status reserved">Reservado</span>; return <span className="status stock">Em estoque</span>; }
-function Line({ label, value, good, bad }) { return <div className="line"><span>{label}</span><strong className={good ? "green" : bad ? "red" : ""}>{value}</strong></div>; }
-function FinancialSummary({ summary }) { return <ModuleCard title="Resumo Financeiro" subtitle="Resultado operacional"><Line label="Faturamento" value={currency(summary.receitaReal)} good /><Line label="Custo dos vendidos" value={`-${currency(summary.custoVendidos)}`} bad /><Line label="Lucro bruto" value={currency(summary.lucroReal)} good /><Line label="Lucro esperado" value={currency(summary.lucroEsperado)} good /></ModuleCard>; }
-function CostDistribution({ costs, summary }) { return <ModuleCard title="Distribuição dos custos" subtitle="Composição do capital"><div className="cost-bars">{costs.map(([name, value, cls]) => { const percent = summary.capitalInvestido ? (value / summary.capitalInvestido) * 100 : 0; return <div key={name}><div className="bar-label"><span>{name}</span><strong>{currency(value)} ({percent.toFixed(1)}%)</strong></div><div className="bar-bg"><div className={cls} style={{ width: `${Math.min(100, percent)}%` }} /></div></div>; })}</div></ModuleCard>; }
-function RecentSales({ products }) { return <ModuleCard title="Vendas recentes" subtitle="Últimas vendas"><div className="recent-list">{products.map((p) => { const calc = productMath(p); return <div key={p.id} className="recent-item"><div><strong>{p.nome}</strong><small>{formatDateBR(p.dataVenda)}</small></div><span>{currency(calc.lucroReal)}</span></div>; })}</div></ModuleCard>; }
-function MiniReport({ title, value, desc }) { return <div className="mini-report"><p>{title}</p><strong>{value}</strong><small>{desc}</small></div>; }
-function FinanceCharts({ summary }) { const max = Math.max(summary.receitaReal, summary.valorEstoque, summary.lucroEsperado, summary.lucroReal, 1); const items = [["Receita", summary.receitaReal, "bar-green"], ["Estoque", summary.valorEstoque, "bar-white"], ["Lucro esperado", summary.lucroEsperado, "bar-yellow"], ["Lucro real", summary.lucroReal, "bar-purple"]]; return <div className="finance-chart">{items.map(([label, value, cls]) => <div key={label}><div className="bar-label"><span>{label}</span><strong>{currency(value)}</strong></div><div className="bar-bg"><div className={cls} style={{ width: `${Math.max(4, (value / max) * 100)}%` }} /></div></div>)}</div>; }
-function LowStockList({ products }) { if (!products.length) return <p className="muted">Nenhum produto abaixo ou igual ao estoque mínimo.</p>; return <div className="low-stock-list">{products.map((p) => <div key={p.id} className="low-stock-item"><strong>{p.nome}</strong><span>Qtd: {p.quantidade} / Mínimo: {p.estoqueMinimo}</span></div>)}</div>; }
-function NoPermission() { return <ModuleCard title="Acesso restrito" subtitle="Seu perfil não possui permissão para esta rotina."><p className="muted">Solicite acesso a um administrador.</p></ModuleCard>; }
+.sidebar nav button svg {
+  flex-shrink: 0;
+  min-width: 18px;
+}
+
+.sale-product-cell {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 260px;
+}
+
+.sale-thumb {
+  width: 54px;
+  height: 54px;
+  min-width: 54px;
+  padding: 0;
+  border-radius: 14px;
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,.12);
+  background: #050505;
+}
+
+.sale-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.sale-product-cell strong {
+  color: #fff;
+  font-weight: 800;
+}
+
+@media (max-width: 980px) {
+  .sidebar nav button {
+    padding-left: 14px;
+  }
+}
+
+
+/* Jogador1 Games - v3.1.4 */
+.stat-card.real-profit {
+  background:
+    linear-gradient(135deg, rgba(34, 197, 94, 0.18), rgba(17, 17, 20, 0.98) 58%),
+    #111114;
+  border-color: rgba(34, 197, 94, 0.48);
+  box-shadow:
+    0 0 0 1px rgba(34, 197, 94, 0.12),
+    0 0 34px rgba(34, 197, 94, 0.18);
+}
+
+.stat-card.real-profit strong {
+  color: #86efac;
+  font-size: clamp(24px, 2vw, 30px);
+}
+
+.stat-card.real-profit span {
+  color: #86efac;
+  background: rgba(34, 197, 94, 0.16);
+  border-color: rgba(34, 197, 94, 0.42);
+}
+
+.modal-action-buttons {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+}
+
+.delete-product-button {
+  width: 100%;
+  height: 46px;
+  background: rgba(127, 29, 29, 0.85);
+  border: 1px solid rgba(248, 113, 113, 0.35);
+  color: #fecaca;
+}
+
+.delete-product-button:hover {
+  background: rgba(185, 28, 28, 0.95);
+}
+
+
+/* Jogador1 Games - v3.1.5 */
+/* Correção de responsividade dos cards financeiros */
+
+.stats {
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  align-items: stretch;
+}
+
+.stat-card {
+  min-height: 126px;
+  grid-template-columns: minmax(0, 1fr) 48px;
+  column-gap: 16px;
+}
+
+.stat-card > div {
+  min-width: 0;
+}
+
+.stat-card strong {
+  white-space: normal;
+  word-break: keep-all;
+}
+
+.stat-card span {
+  width: 48px;
+  height: 48px;
+  justify-self: end;
+}
+
+.stat-card.real-profit strong {
+  font-size: clamp(23px, 1.8vw, 28px);
+}
+
+/* Em telas médias, evita 5 cards apertados + 1 quebrado sozinho */
+@media (max-width: 1500px) {
+  .stats {
+    grid-template-columns: repeat(3, minmax(240px, 1fr));
+  }
+}
+
+/* Em telas menores, usa 2 colunas confortáveis */
+@media (max-width: 1120px) {
+  .stats {
+    grid-template-columns: repeat(2, minmax(240px, 1fr));
+  }
+}
+
+/* Em celular, 1 card por linha */
+@media (max-width: 680px) {
+  .stats {
+    grid-template-columns: 1fr;
+  }
+
+  .stat-card {
+    min-height: auto;
+  }
+}
+
+
+/* Jogador1 Games - v3.1.6 */
+.selected-extra-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding-right: 6px;
+}
+
+.selected-extra-chip > span {
+  line-height: 1.2;
+}
+
+.selected-extra-remove {
+  width: 24px;
+  height: 24px;
+  min-width: 24px;
+  padding: 0;
+  border-radius: 999px;
+  background: rgba(220, 38, 38, 0.95);
+  color: #fff;
+  border: 1px solid rgba(248, 113, 113, 0.35);
+}
+
+.selected-extra-remove:hover {
+  background: #b91c1c;
+}
+
+
+/* Jogador1 Games - v4.0 */
+.dashboard-sales-management {
+  width: min(1180px, 100%);
+  margin: 0 auto;
+}
+
+.dashboard-sales-management .module-card {
+  border-color: rgba(239, 68, 68, 0.22);
+  box-shadow: 0 0 65px rgba(220, 38, 38, 0.10);
+}
+
+.dashboard-sales-management .module-header {
+  text-align: center;
+}
+
+.dashboard-sales-management .module-header h3 {
+  justify-content: center;
+  font-size: 24px;
+}
+
+.dashboard-sales-management .module-actions {
+  justify-content: center;
+}
+
+.alert-bell {
+  position: relative;
+  width: 48px;
+  height: 48px;
+  padding: 0;
+  border-radius: 16px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.12);
+  color: #e5e7eb;
+}
+
+.alert-bell.has-alerts {
+  background: rgba(220, 38, 38, 0.16);
+  border-color: rgba(248, 113, 113, 0.45);
+  color: #fecaca;
+  box-shadow: 0 0 22px rgba(220, 38, 38, 0.25);
+}
+
+.alert-bell span {
+  position: absolute;
+  top: -7px;
+  right: -7px;
+  display: grid;
+  place-items: center;
+  min-width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  background: #ef4444;
+  color: white;
+  font-size: 12px;
+  font-weight: 900;
+  border: 2px solid #050505;
+}
+
+.alerts-list {
+  display: grid;
+  gap: 12px;
+}
+
+.alert-item {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: center;
+  padding: 16px;
+  border-radius: 18px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.10);
+}
+
+.alert-item.unread {
+  border-color: rgba(248, 113, 113, 0.45);
+  background: rgba(127, 29, 29, 0.22);
+}
+
+.alert-item p {
+  margin: 6px 0 0;
+  color: #d4d4d8;
+}
+
+.seen-pill {
+  display: inline-flex;
+  padding: 7px 12px;
+  border-radius: 999px;
+  background: rgba(34,197,94,0.12);
+  color: #86efac;
+  font-weight: 800;
+}
+
+.extra-cost-form-v4 {
+  grid-template-columns: minmax(240px, 1fr) 140px 140px 140px 160px auto;
+}
+
+.settings-row {
+  display: grid;
+  grid-template-columns: 220px minmax(180px, 320px);
+  gap: 14px;
+  align-items: center;
+}
+
+.background-animations {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+  overflow: hidden;
+}
+
+.layout,
+.modal-backdrop,
+.image-overlay {
+  position: relative;
+  z-index: 2;
+}
+
+.bg-sprite {
+  position: absolute;
+  font-size: 28px;
+  filter: drop-shadow(0 0 12px rgba(239, 68, 68, 0.35));
+  opacity: 0;
+}
+
+.background-animations.discreto .bg-sprite {
+  animation-duration: 22s;
+}
+
+.background-animations.gamer .bg-sprite {
+  animation-duration: 12s;
+  font-size: 34px;
+}
+
+.sprite-runner {
+  top: 18%;
+  left: -60px;
+  animation: sprite-runner linear infinite;
+}
+
+.sprite-bolt {
+  top: 52%;
+  right: -60px;
+  animation: sprite-bolt linear infinite 4s;
+}
+
+.sprite-orb {
+  bottom: 12%;
+  left: -60px;
+  animation: sprite-orb linear infinite 8s;
+}
+
+.sprite-star {
+  top: 8%;
+  right: 12%;
+  animation: sprite-star linear infinite 3s;
+}
+
+@keyframes sprite-runner {
+  0%, 12% { transform: translateX(0) translateY(0); opacity: 0; }
+  18% { opacity: .55; }
+  38% { transform: translateX(45vw) translateY(-28px); opacity: .75; }
+  58% { transform: translateX(75vw) translateY(10px); opacity: .55; }
+  68%, 100% { transform: translateX(110vw) translateY(-20px); opacity: 0; }
+}
+
+@keyframes sprite-bolt {
+  0%, 20% { transform: translateX(0) scale(.9); opacity: 0; }
+  28% { opacity: .75; }
+  42% { transform: translateX(-45vw) scale(1.2); opacity: .9; }
+  54%, 100% { transform: translateX(-110vw) scale(.9); opacity: 0; }
+}
+
+@keyframes sprite-orb {
+  0%, 28% { transform: translateX(0) rotate(0deg); opacity: 0; }
+  36% { opacity: .55; }
+  58% { transform: translateX(65vw) rotate(240deg); opacity: .7; }
+  76%, 100% { transform: translateX(110vw) rotate(420deg); opacity: 0; }
+}
+
+@keyframes sprite-star {
+  0%, 35% { transform: translateY(-40px) scale(.7); opacity: 0; }
+  48% { transform: translateY(60px) scale(1.15); opacity: .8; }
+  62%, 100% { transform: translateY(160px) scale(.8); opacity: 0; }
+}
+
+@media (max-width: 980px) {
+  .extra-cost-form-v4 {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .settings-row {
+    grid-template-columns: 1fr;
+  }
+
+  .background-animations.gamer .bg-sprite,
+  .background-animations.discreto .bg-sprite {
+    font-size: 22px;
+    opacity: .25;
+  }
+}
+
+@media (max-width: 680px) {
+  .extra-cost-form-v4 {
+    grid-template-columns: 1fr;
+  }
+
+  .background-animations {
+    display: none;
+  }
+}
+
+
+/* Jogador1 Games - v4.0.2 */
+/* Sprites/mascotes próprios para animações de fundo */
+
+.background-animations {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+  overflow: hidden;
+}
+
+.layout,
+.modal-backdrop,
+.image-overlay {
+  position: relative;
+  z-index: 2;
+}
+
+.mascot {
+  position: absolute;
+  display: block;
+  opacity: 0;
+  filter:
+    drop-shadow(0 0 10px rgba(248, 113, 113, 0.45))
+    drop-shadow(0 0 18px rgba(34, 197, 94, 0.10));
+  transform: translate3d(0, 0, 0);
+}
+
+.background-animations.discreto .mascot {
+  animation-duration: 16s;
+}
+
+.background-animations.gamer .mascot {
+  animation-duration: 9s;
+}
+
+/* Controle pixelado */
+.mascot-controller {
+  width: 58px;
+  height: 38px;
+  top: 18%;
+  left: -80px;
+  animation: mascot-controller-run linear infinite;
+}
+
+.controller-body {
+  position: absolute;
+  inset: 6px 2px 2px;
+  border-radius: 14px 14px 18px 18px;
+  background: linear-gradient(135deg, #f8fafc, #d1d5db);
+  border: 3px solid #7f1d1d;
+  box-shadow: inset 0 -5px 0 rgba(0,0,0,.14);
+}
+
+.controller-pad {
+  position: absolute;
+  width: 13px;
+  height: 13px;
+  left: 14px;
+  top: 16px;
+  background:
+    linear-gradient(#111 0 0) center/100% 4px no-repeat,
+    linear-gradient(#111 0 0) center/4px 100% no-repeat;
+}
+
+.controller-buttons {
+  position: absolute;
+  width: 18px;
+  height: 9px;
+  right: 12px;
+  top: 17px;
+  background:
+    radial-gradient(circle at 4px 5px, #ef4444 0 4px, transparent 5px),
+    radial-gradient(circle at 14px 5px, #22c55e 0 4px, transparent 5px);
+}
+
+/* Orb elétrica */
+.mascot-orb {
+  width: 48px;
+  height: 48px;
+  top: 50%;
+  right: -70px;
+  animation: mascot-orb-flight linear infinite 2.5s;
+}
+
+.orb-core {
+  position: absolute;
+  inset: 7px;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 35% 30%, #fef3c7 0 12%, #facc15 18%, #ef4444 55%, #7f1d1d 100%);
+  border: 3px solid #fbbf24;
+}
+
+.orb-spark {
+  position: absolute;
+  display: block;
+  width: 18px;
+  height: 5px;
+  background: #facc15;
+  border-radius: 99px;
+  box-shadow: 0 0 12px #facc15;
+}
+
+.spark-one {
+  top: 6px;
+  right: -6px;
+  transform: rotate(-30deg);
+}
+
+.spark-two {
+  bottom: 4px;
+  left: -4px;
+  transform: rotate(35deg);
+}
+
+/* Dragão pixel-art genérico */
+.mascot-dragon {
+  width: 74px;
+  height: 50px;
+  bottom: 15%;
+  left: -90px;
+  animation: mascot-dragon-fly linear infinite 5s;
+}
+
+.dragon-head {
+  position: absolute;
+  width: 34px;
+  height: 28px;
+  right: 10px;
+  top: 11px;
+  background: #22c55e;
+  border: 3px solid #14532d;
+  border-radius: 9px 13px 8px 8px;
+  box-shadow: -18px 10px 0 #16a34a;
+}
+
+.dragon-head::before {
+  content: "";
+  position: absolute;
+  right: 3px;
+  top: 6px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #020617;
+}
+
+.dragon-wing {
+  position: absolute;
+  left: 5px;
+  top: 2px;
+  width: 32px;
+  height: 26px;
+  background: #15803d;
+  clip-path: polygon(0 100%, 48% 0, 100% 100%);
+  opacity: .95;
+}
+
+.dragon-fire {
+  position: absolute;
+  right: -16px;
+  top: 18px;
+  width: 24px;
+  height: 12px;
+  background: linear-gradient(90deg, #f97316, #facc15, transparent);
+  border-radius: 999px;
+  box-shadow: 0 0 16px rgba(249, 115, 22, .8);
+}
+
+/* Cartucho retrô */
+.mascot-cart {
+  width: 44px;
+  height: 54px;
+  top: 72%;
+  right: -70px;
+  animation: mascot-cart-slide linear infinite 7s;
+}
+
+.cart-body {
+  position: absolute;
+  inset: 0;
+  background: #1f2937;
+  border: 3px solid #ef4444;
+  border-radius: 8px;
+  box-shadow: inset 0 -8px 0 rgba(0,0,0,.25);
+}
+
+.cart-label {
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  top: 12px;
+  height: 18px;
+  border-radius: 4px;
+  background: linear-gradient(90deg, #ef4444, #f97316);
+}
+
+/* Moeda gamer */
+.mascot-coin {
+  width: 34px;
+  height: 34px;
+  top: 30%;
+  left: 10%;
+  animation: mascot-coin-pop linear infinite 3s;
+}
+
+.mascot-coin i {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #fef3c7 0 12%, #facc15 20%, #d97706 85%);
+  border: 3px solid #f59e0b;
+  box-shadow: 0 0 18px rgba(250, 204, 21, .35);
+}
+
+/* Estrela pixelada */
+.mascot-star-pixel {
+  width: 42px;
+  height: 42px;
+  top: 8%;
+  right: 15%;
+  animation: mascot-star-drop linear infinite 4.5s;
+}
+
+.mascot-star-pixel i {
+  position: absolute;
+  inset: 0;
+  background: #facc15;
+  clip-path: polygon(50% 0, 62% 32%, 100% 32%, 69% 54%, 82% 100%, 50% 73%, 18% 100%, 31% 54%, 0 32%, 38% 32%);
+  filter: drop-shadow(0 0 10px rgba(250, 204, 21, .8));
+}
+
+/* Animações */
+@keyframes mascot-controller-run {
+  0%, 7% { transform: translateX(0) translateY(0) rotate(-8deg); opacity: 0; }
+  10% { opacity: .55; }
+  26% { transform: translateX(28vw) translateY(-28px) rotate(8deg); opacity: .78; }
+  44% { transform: translateX(54vw) translateY(18px) rotate(-10deg); opacity: .72; }
+  60% { transform: translateX(78vw) translateY(-12px) rotate(6deg); opacity: .58; }
+  70%, 100% { transform: translateX(110vw) translateY(0) rotate(10deg); opacity: 0; }
+}
+
+@keyframes mascot-orb-flight {
+  0%, 16% { transform: translateX(0) translateY(0) scale(.86); opacity: 0; }
+  20% { opacity: .65; }
+  38% { transform: translateX(-28vw) translateY(-16px) scale(1.05); opacity: .85; }
+  55% { transform: translateX(-58vw) translateY(18px) scale(.95); opacity: .7; }
+  68%, 100% { transform: translateX(-110vw) translateY(-8px) scale(.82); opacity: 0; }
+}
+
+@keyframes mascot-dragon-fly {
+  0%, 20% { transform: translateX(0) translateY(0) scale(.9); opacity: 0; }
+  25% { opacity: .62; }
+  45% { transform: translateX(35vw) translateY(-18px) scale(1.02); opacity: .8; }
+  63% { transform: translateX(70vw) translateY(12px) scale(.98); opacity: .62; }
+  75%, 100% { transform: translateX(112vw) translateY(-16px) scale(.9); opacity: 0; }
+}
+
+@keyframes mascot-cart-slide {
+  0%, 28% { transform: translateX(0) rotate(0deg); opacity: 0; }
+  34% { opacity: .56; }
+  52% { transform: translateX(-40vw) rotate(-8deg); opacity: .76; }
+  70% { transform: translateX(-78vw) rotate(8deg); opacity: .55; }
+  82%, 100% { transform: translateX(-112vw) rotate(0deg); opacity: 0; }
+}
+
+@keyframes mascot-coin-pop {
+  0%, 40% { transform: translateY(0) scale(.4) rotateY(0deg); opacity: 0; }
+  46% { opacity: .65; }
+  58% { transform: translateY(-72px) scale(1) rotateY(180deg); opacity: .85; }
+  72%, 100% { transform: translateY(-120px) scale(.6) rotateY(360deg); opacity: 0; }
+}
+
+@keyframes mascot-star-drop {
+  0%, 38% { transform: translateY(-60px) rotate(0deg) scale(.5); opacity: 0; }
+  45% { opacity: .7; }
+  60% { transform: translateY(55px) rotate(180deg) scale(1.05); opacity: .85; }
+  78%, 100% { transform: translateY(180px) rotate(360deg) scale(.65); opacity: 0; }
+}
+
+.background-animations.gamer .mascot {
+  filter:
+    drop-shadow(0 0 12px rgba(248, 113, 113, 0.62))
+    drop-shadow(0 0 18px rgba(250, 204, 21, 0.24));
+}
+
+.background-animations.gamer .mascot-controller { animation-delay: 0s; }
+.background-animations.gamer .mascot-orb { animation-delay: 1.2s; }
+.background-animations.gamer .mascot-dragon { animation-delay: 2.4s; }
+.background-animations.gamer .mascot-cart { animation-delay: 3.4s; }
+
+.background-animations.discreto .mascot-coin,
+.background-animations.discreto .mascot-star-pixel {
+  display: none;
+}
+
+@media (max-width: 980px) {
+  .background-animations.discreto .mascot,
+  .background-animations.gamer .mascot {
+    transform-origin: center;
+  }
+
+  .mascot-controller,
+  .mascot-dragon {
+    scale: .78;
+  }
+
+  .mascot-orb,
+  .mascot-cart,
+  .mascot-coin,
+  .mascot-star-pixel {
+    scale: .72;
+  }
+}
+
+@media (max-width: 680px) {
+  .background-animations {
+    display: none;
+  }
+}
