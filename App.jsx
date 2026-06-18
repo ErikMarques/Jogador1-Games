@@ -23,7 +23,7 @@ import {
   X,
 } from "lucide-react";
 
-const APP_VERSION = "3.1.2";
+const APP_VERSION = "3.1.4";
 const STORAGE_BUCKET = "produto-imagens";
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
@@ -313,6 +313,7 @@ export default function App() {
   }, [financialProducts]);
 
   const totalExtraCosts = extraCosts.reduce((acc, item) => acc + Number(item.valor || 0), 0);
+  const roiPercent = summary.capitalInvestido ? (summary.lucroReal / summary.capitalInvestido) * 100 : 0;
   const lowStockProducts = stockProducts.filter((p) => Number(p.quantidade || 0) <= Number(p.estoqueMinimo || 0));
 
   const costDistribution = [
@@ -540,16 +541,30 @@ export default function App() {
   }
 
   async function removeProduct(id) {
-    if (!permissions.canDelete) return alert("Seu perfil não permite excluir produtos.");
+    if (!permissions.canDelete) {
+      alert("Seu perfil não permite excluir produtos.");
+      return false;
+    }
+
     const confirmDelete = window.confirm("Deseja inativar este produto? O registro será mantido no banco com status X.");
-    if (!confirmDelete) return;
+    if (!confirmDelete) return false;
 
     if (supabase) {
       const { error } = await supabase.from("produtos").update({ status_registro: "X" }).eq("id", id);
-      if (error) return alert(`Erro ao inativar produto: ${error.message}`);
+      if (error) {
+        alert(`Erro ao inativar produto: ${error.message}`);
+        return false;
+      }
     }
 
     setProducts((prev) => prev.map((item) => item.id === id ? { ...item, statusRegistro: "X" } : item));
+    return true;
+  }
+
+  async function deleteEditingProduct() {
+    if (!editingProduct) return;
+    const success = await removeProduct(editingProduct.id);
+    if (success) setEditingProduct(null);
   }
 
   async function restoreProduct(id) {
@@ -613,7 +628,14 @@ export default function App() {
               const calc = productMath(p);
               return (
                 <tr key={p.id}>
-                  <td>{p.nome}</td>
+                  <td>
+                    <div className="sale-product-cell">
+                      <button className="sale-thumb" onClick={() => setExpandedImage(imageSrc(p.imagens?.[0]))}>
+                        {p.imagens?.[0] ? <img src={imageSrc(p.imagens[0])} alt={p.nome} /> : <ImagePlus size={18} />}
+                      </button>
+                      <strong>{p.nome}</strong>
+                    </div>
+                  </td>
                   <td>{formatDateBR(p.dataVenda)}</td>
                   <td className="green">{currency(p.vendaReal)}</td>
                   <td>{currency(calc.custoFinal)}</td>
@@ -667,10 +689,10 @@ export default function App() {
         <div className="report-layout">
           <ModuleCard title="Relatórios" subtitle="Visão consolidada da operação.">
             <div className="module-actions report-actions"><button onClick={exportPdf}><Download size={17} /> Gerar PDF</button><button onClick={exportBackup}><Download size={17} /> Backup JSON</button></div>
-            <div className="report-grid"><MiniReport title="Estoque" value={currency(summary.valorEstoque)} desc="Capital parado" /><MiniReport title="Vendas" value={currency(summary.receitaReal)} desc="Receita realizada" /><MiniReport title="Lucro líquido" value={currency(summary.lucroReal - totalExtraCosts)} desc="Lucro real menos custos extras" /><MiniReport title="Produtos vendidos" value={soldProducts.length} desc="Histórico de vendas" /></div>
+            <div className="report-grid"><MiniReport title="Estoque" value={currency(summary.valorEstoque)} desc="Capital parado" /><MiniReport title="Vendas" value={currency(summary.receitaReal)} desc="Receita realizada" /><MiniReport title="Lucro real" value={currency(summary.lucroReal)} desc="Soma dos lucros reais das vendas válidas" /><MiniReport title="Retorno sobre Capital" value={`${roiPercent.toFixed(2).replace(".", ",")}%`} desc={`A cada R$ 100 investidos, retornaram R$ ${roiPercent.toFixed(2).replace(".", ",")} de lucro`} /><MiniReport title="Produtos vendidos" value={soldProducts.length} desc="Histórico de vendas" /></div>
             <CostDistribution costs={costDistribution} summary={summary} />
           </ModuleCard>
-          <ModuleCard title="Gráficos financeiros" subtitle="Indicadores visuais"><FinanceCharts summary={summary} totalExtraCosts={totalExtraCosts} /></ModuleCard>
+          <ModuleCard title="Gráficos financeiros" subtitle="Indicadores visuais"><FinanceCharts summary={summary} /></ModuleCard>
           <ModuleCard title="Movimentações por data" subtitle="Compras e vendas registradas"><CalendarEventList events={calendarEvents} /></ModuleCard>
         </div>
       );
@@ -678,7 +700,7 @@ export default function App() {
 
     if (activeMenu === "Financeiro") {
       if (!permissions.canFinancial) return <NoPermission />;
-      return <ModuleCard title="Financeiro" subtitle="Resumo do caixa, lucro e despesas."><div className="two-columns"><FinancialSummary summary={{ ...summary, lucroReal: summary.lucroReal - totalExtraCosts }} /><ModuleCard title="Caixa Operacional" subtitle="Resumo rápido"><Line label="Receita Real" value={currency(summary.receitaReal)} good /><Line label="Custo dos vendidos" value={`-${currency(summary.custoVendidos)}`} bad /><Line label="Custos extras" value={`-${currency(totalExtraCosts)}`} bad /><Line label="Resultado" value={currency(summary.lucroReal - totalExtraCosts)} good /></ModuleCard></div></ModuleCard>;
+      return <ModuleCard title="Financeiro" subtitle="Resumo do caixa, lucro e resultado das vendas."><div className="two-columns"><FinancialSummary summary={summary} /><ModuleCard title="Caixa Operacional" subtitle="Resumo rápido"><Line label="Receita Real" value={currency(summary.receitaReal)} good /><Line label="Custo dos vendidos" value={`-${currency(summary.custoVendidos)}`} bad /><Line label="Lucro Real" value={currency(summary.lucroReal)} good /><Line label="ROI" value={`${roiPercent.toFixed(2).replace(".", ",")}%`} good /></ModuleCard></div></ModuleCard>;
     }
 
     if (activeMenu === "Usuários") {
@@ -731,13 +753,13 @@ export default function App() {
 
       {newProductOpen && <ProductModal title="Cadastrar novo produto" product={newProduct} setProduct={setNewProduct} onClose={() => setNewProductOpen(false)} onSave={addProduct} saveText="Adicionar ao estoque" importImages={importNewImages} removeImage={(index) => setNewProduct((prev) => ({ ...prev, imagens: prev.imagens.filter((_, i) => i !== index) }))} setExpandedImage={setExpandedImage} extraCosts={extraCosts} />}
 
-      {editingProduct && <ProductModal title="Editar produto" product={editingProduct} setProduct={setEditingProduct} onClose={() => setEditingProduct(null)} onSave={saveEdit} saveText="Salvar alterações" importImages={importEditImages} removeImage={(index) => setEditingProduct((prev) => ({ ...prev, imagens: prev.imagens.filter((_, i) => i !== index) }))} setExpandedImage={setExpandedImage} extraCosts={extraCosts} editing />}
+      {editingProduct && <ProductModal title="Editar produto" product={editingProduct} setProduct={setEditingProduct} onClose={() => setEditingProduct(null)} onSave={saveEdit} onDelete={deleteEditingProduct} saveText="Salvar alterações" importImages={importEditImages} removeImage={(index) => setEditingProduct((prev) => ({ ...prev, imagens: prev.imagens.filter((_, i) => i !== index) }))} setExpandedImage={setExpandedImage} extraCosts={extraCosts} editing />}
 
       <div className="layout">
         <aside className="sidebar">
           <div className="brand"><div className="brand-icon"><Gamepad2 size={54} /></div><h1>JOGADOR<span>1</span></h1><p>GAMES</p></div>
           <nav>{menus.map(([label, Icon]) => <button key={label} type="button" onClick={() => setActiveMenu(label)} className={activeMenu === label ? "active" : ""}><Icon size={18} />{label}</button>)}</nav>
-          <div className="sidebar-profit"><p>Lucro real vendido</p><strong>{currency(summary.lucroReal - totalExtraCosts)}</strong><small>Perfil: {profile?.perfil}</small></div>
+          <div className="sidebar-profit"><p>Lucro real vendido</p><strong>{currency(summary.lucroReal)}</strong><small>Perfil: {profile?.perfil}</small></div>
           <button className="logout-btn" onClick={signOut}><LogOut size={16} />Sair</button>
         </aside>
 
@@ -747,7 +769,7 @@ export default function App() {
             <div className="topbar-actions"><button className="date-pill" onClick={() => setCalendarOpen(true)}><CalendarDays size={17} /> {currentMonthLabel()}</button><div className="capital-pill"><p>Capital total</p><strong>{currency(summary.capitalInvestido)}</strong></div></div>
           </header>
 
-          {showStats && <section className="stats"><Stat icon={Wallet} title="Capital Investido" value={currency(summary.capitalInvestido)} subtitle="Total aplicado" color="red" /><Stat icon={Boxes} title="Valor em Estoque" value={currency(summary.valorEstoque)} subtitle="Não vendidos" color="white" /><Stat icon={TrendingUp} title="Lucro Esperado" value={currency(summary.lucroEsperado)} subtitle="Venda prevista" color="green" /><Stat icon={DollarSign} title="Lucro Real" value={currency(summary.lucroReal - totalExtraCosts)} subtitle="Após despesas" color="purple" /><Stat icon={Package} title="Produtos em Estoque" value={summary.produtosEstoque} subtitle="Disponíveis" color="amber" /></section>}
+          {showStats && <section className="stats"><Stat icon={Wallet} title="Capital Investido" value={currency(summary.capitalInvestido)} subtitle="Total aplicado" color="red" /><Stat icon={Boxes} title="Valor em Estoque" value={currency(summary.valorEstoque)} subtitle="Não vendidos" color="white" /><Stat icon={TrendingUp} title="Lucro Esperado" value={currency(summary.lucroEsperado)} subtitle="Venda prevista" color="green" /><Stat icon={DollarSign} title="Lucro Real" value={currency(summary.lucroReal)} subtitle="Vendas válidas" color="real-profit" /><Stat icon={TrendingUp} title="Retorno sobre Capital" value={`${roiPercent.toFixed(2).replace(".", ",")}%`} subtitle="Lucro sobre capital" color="green" /><Stat icon={Package} title="Produtos em Estoque" value={summary.produtosEstoque} subtitle="Disponíveis" color="amber" /></section>}
 
           {renderModule()}
           <footer className="version-footer">Atualizado com a versão {APP_VERSION}. <button onClick={() => setVersionOpen(true)}>Clique aqui e saiba as novidades.</button></footer>
@@ -777,7 +799,7 @@ function buildCalendarEvents(products) {
   return Array.from(map.values()).sort((a, b) => b.date.localeCompare(a.date));
 }
 
-function ProductModal({ title, product, setProduct, onClose, onSave, saveText, importImages, removeImage, setExpandedImage, extraCosts, editing }) {
+function ProductModal({ title, product, setProduct, onClose, onSave, onDelete, saveText, importImages, removeImage, setExpandedImage, extraCosts, editing }) {
   const cost = productMath(product).custoFinal;
   const profit = Number(product.vendaEsperada || 0) - cost;
 
@@ -802,7 +824,7 @@ function ProductModal({ title, product, setProduct, onClose, onSave, saveText, i
             <FormSection title="Custo do produto"><div className="form-grid single"><input type="number" value={product.compra} onChange={(e) => setProduct({ ...product, compra: e.target.value })} placeholder="Preço de compra" /></div><ExtraCostSelector extraCosts={extraCosts} selected={product.custosExtras || []} toggleExtraCost={toggleExtraCost} /></FormSection>
             <FormSection title="Venda"><div className="form-grid"><input type="number" value={product.vendaEsperada} onChange={(e) => setProduct({ ...product, vendaEsperada: e.target.value })} placeholder="Valor esperado de venda" />{editing && <input type="number" value={product.vendaReal} onChange={(e) => setProduct({ ...product, vendaReal: e.target.value })} placeholder="Venda real" />}</div></FormSection>
           </div>
-          <div className="modal-right"><FormSection title="Imagens"><input className="file-input" type="file" accept="image/*" multiple onChange={importImages} /><p className="muted">Você pode importar em etapas, até completar 6 imagens.</p><ImagesGrid images={product.imagens} removeImage={removeImage} setExpandedImage={setExpandedImage} /></FormSection><div className="profit-box"><p>Custo final estimado</p><strong>{currency(cost)}</strong><p>Lucro esperado</p><strong className="green">{currency(profit)}</strong></div><button onClick={onSave} className="full-button"><Plus size={18} /> {saveText}</button></div>
+          <div className="modal-right"><FormSection title="Imagens"><input className="file-input" type="file" accept="image/*" multiple onChange={importImages} /><p className="muted">Você pode importar em etapas, até completar 6 imagens.</p><ImagesGrid images={product.imagens} removeImage={removeImage} setExpandedImage={setExpandedImage} /></FormSection><div className="profit-box"><p>Custo final estimado</p><strong>{currency(cost)}</strong><p>Lucro esperado</p><strong className="green">{currency(profit)}</strong></div><div className="modal-action-buttons">{editing && onDelete && <button onClick={onDelete} className="delete-product-button"><Trash2 size={18} /> Excluir produto</button>}<button onClick={onSave} className="full-button"><Plus size={18} /> {saveText}</button></div></div>
         </div>
       </div>
     </div>
@@ -998,6 +1020,6 @@ function FinancialSummary({ summary }) { return <ModuleCard title="Resumo Financ
 function CostDistribution({ costs, summary }) { return <ModuleCard title="Distribuição dos custos" subtitle="Composição do capital"><div className="cost-bars">{costs.map(([name, value, cls]) => { const percent = summary.capitalInvestido ? (value / summary.capitalInvestido) * 100 : 0; return <div key={name}><div className="bar-label"><span>{name}</span><strong>{currency(value)} ({percent.toFixed(1)}%)</strong></div><div className="bar-bg"><div className={cls} style={{ width: `${Math.min(100, percent)}%` }} /></div></div>; })}</div></ModuleCard>; }
 function RecentSales({ products }) { return <ModuleCard title="Vendas recentes" subtitle="Últimas vendas"><div className="recent-list">{products.map((p) => { const calc = productMath(p); return <div key={p.id} className="recent-item"><div><strong>{p.nome}</strong><small>{formatDateBR(p.dataVenda)}</small></div><span>{currency(calc.lucroReal)}</span></div>; })}</div></ModuleCard>; }
 function MiniReport({ title, value, desc }) { return <div className="mini-report"><p>{title}</p><strong>{value}</strong><small>{desc}</small></div>; }
-function FinanceCharts({ summary, totalExtraCosts }) { const max = Math.max(summary.receitaReal, summary.valorEstoque, summary.lucroEsperado, totalExtraCosts, 1); const items = [["Receita", summary.receitaReal, "bar-green"], ["Estoque", summary.valorEstoque, "bar-white"], ["Lucro esperado", summary.lucroEsperado, "bar-yellow"], ["Custos extras", totalExtraCosts, "bar-red"]]; return <div className="finance-chart">{items.map(([label, value, cls]) => <div key={label}><div className="bar-label"><span>{label}</span><strong>{currency(value)}</strong></div><div className="bar-bg"><div className={cls} style={{ width: `${Math.max(4, (value / max) * 100)}%` }} /></div></div>)}</div>; }
+function FinanceCharts({ summary }) { const max = Math.max(summary.receitaReal, summary.valorEstoque, summary.lucroEsperado, summary.lucroReal, 1); const items = [["Receita", summary.receitaReal, "bar-green"], ["Estoque", summary.valorEstoque, "bar-white"], ["Lucro esperado", summary.lucroEsperado, "bar-yellow"], ["Lucro real", summary.lucroReal, "bar-purple"]]; return <div className="finance-chart">{items.map(([label, value, cls]) => <div key={label}><div className="bar-label"><span>{label}</span><strong>{currency(value)}</strong></div><div className="bar-bg"><div className={cls} style={{ width: `${Math.max(4, (value / max) * 100)}%` }} /></div></div>)}</div>; }
 function LowStockList({ products }) { if (!products.length) return <p className="muted">Nenhum produto abaixo ou igual ao estoque mínimo.</p>; return <div className="low-stock-list">{products.map((p) => <div key={p.id} className="low-stock-item"><strong>{p.nome}</strong><span>Qtd: {p.quantidade} / Mínimo: {p.estoqueMinimo}</span></div>)}</div>; }
 function NoPermission() { return <ModuleCard title="Acesso restrito" subtitle="Seu perfil não possui permissão para esta rotina."><p className="muted">Solicite acesso a um administrador.</p></ModuleCard>; }
