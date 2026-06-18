@@ -1,4 +1,4 @@
-/* Jogador1 Games - v3.1.4 */
+/* Jogador1 Games - v3.1.6 */
 * { box-sizing: border-box; }
 html, body, #root { min-height: 100%; }
 body {
@@ -630,4 +630,91 @@ tr td:last-child { border-radius: 0 16px 16px 0; }
 
 .delete-product-button:hover {
   background: rgba(185, 28, 28, 0.95);
+}
+
+
+/* Jogador1 Games - v3.1.5 */
+/* Correção de responsividade dos cards financeiros */
+
+.stats {
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  align-items: stretch;
+}
+
+.stat-card {
+  min-height: 126px;
+  grid-template-columns: minmax(0, 1fr) 48px;
+  column-gap: 16px;
+}
+
+.stat-card > div {
+  min-width: 0;
+}
+
+.stat-card strong {
+  white-space: normal;
+  word-break: keep-all;
+}
+
+.stat-card span {
+  width: 48px;
+  height: 48px;
+  justify-self: end;
+}
+
+.stat-card.real-profit strong {
+  font-size: clamp(23px, 1.8vw, 28px);
+}
+
+/* Em telas médias, evita 5 cards apertados + 1 quebrado sozinho */
+@media (max-width: 1500px) {
+  .stats {
+    grid-template-columns: repeat(3, minmax(240px, 1fr));
+  }
+}
+
+/* Em telas menores, usa 2 colunas confortáveis */
+@media (max-width: 1120px) {
+  .stats {
+    grid-template-columns: repeat(2, minmax(240px, 1fr));
+  }
+}
+
+/* Em celular, 1 card por linha */
+@media (max-width: 680px) {
+  .stats {
+    grid-template-columns: 1fr;
+  }
+
+  .stat-card {
+    min-height: auto;
+  }
+}
+
+
+/* Jogador1 Games - v3.1.6 */
+.selected-extra-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding-right: 6px;
+}
+
+.selected-extra-chip > span {
+  line-height: 1.2;
+}
+
+.selected-extra-remove {
+  width: 24px;
+  height: 24px;
+  min-width: 24px;
+  padding: 0;
+  border-radius: 999px;
+  background: rgba(220, 38, 38, 0.95);
+  color: #fff;
+  border: 1px solid rgba(248, 113, 113, 0.35);
+}
+
+.selected-extra-remove:hover {
+  background: #b91c1c;
 }
