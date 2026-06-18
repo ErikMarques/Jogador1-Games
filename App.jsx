@@ -25,7 +25,7 @@ import {
   X,
 } from "lucide-react";
 
-const APP_VERSION = "4.0";
+const APP_VERSION = "4.0.2";
 const STORAGE_BUCKET = "produto-imagens";
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
@@ -84,6 +84,20 @@ function monthLabelFromKey(key) {
   const [year, month] = key.split("-").map(Number);
   const d = new Date(year, month - 1, 1);
   return d.toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
+}
+
+function productMovementDate(product) {
+  if (!product) return new Date().toISOString();
+
+  if (product.status === "Vendido") {
+    return product.dataVenda || product.dataCompra || new Date().toISOString();
+  }
+
+  return product.dataCompra || new Date().toISOString();
+}
+
+function productSaleDate(product) {
+  return product?.dataVenda || product?.dataCompra || new Date().toISOString();
 }
 
 
@@ -373,8 +387,7 @@ export default function App() {
   const inactiveProducts = useMemo(() => products.filter((p) => p.statusRegistro === "X"), [products]);
   const financialProducts = useMemo(() => activeProducts.filter((p) => p.status !== "Vendido" || p.statusVenda !== "X"), [activeProducts]);
   const monthlyFinancialProducts = useMemo(() => financialProducts.filter((p) => {
-    const referenceDate = p.status === "Vendido" ? p.dataVenda : p.dataCompra;
-    return monthKeyFromValue(referenceDate) === currentMonthKey();
+    return monthKeyFromValue(productMovementDate(p)) === currentMonthKey();
   }), [financialProducts]);
 
   const summary = useMemo(() => {
@@ -401,7 +414,7 @@ export default function App() {
     const map = new Map();
 
     for (const p of financialProducts) {
-      const key = monthKeyFromValue(p.status === "Vendido" ? p.dataVenda : p.dataCompra);
+      const key = monthKeyFromValue(productMovementDate(p));
       if (!key) continue;
 
       if (!map.has(key)) {
@@ -818,7 +831,7 @@ const costDistribution = [
                       <strong>{p.nome}</strong>
                     </div>
                   </td>
-                  <td>{formatDateBR(p.dataVenda)}</td>
+                  <td>{formatDateBR(productSaleDate(p))}</td>
                   <td className="green">{currency(p.vendaReal)}</td>
                   <td>{currency(calc.custoFinal)}</td>
                   <td className="green strong">{currency(calc.lucroReal)}</td>
@@ -995,7 +1008,7 @@ function buildCalendarEvents(products) {
     }
 
     if (p.status === "Vendido") {
-      const saleKey = dateKey(p.dataVenda);
+      const saleKey = dateKey(productSaleDate(p));
       if (saleKey) {
         if (!map.has(saleKey)) map.set(saleKey, { date: saleKey, compras: [], vendas: [] });
         map.get(saleKey).vendas.push({ nome: p.nome, valor: Number(p.vendaReal || 0) });
@@ -1158,12 +1171,42 @@ function BackgroundAnimations({ mode }) {
   if (mode === "desativado") return null;
 
   const isGamer = mode === "gamer";
+
   return (
     <div className={`background-animations ${isGamer ? "gamer" : "discreto"}`} aria-hidden="true">
-      <span className="bg-sprite sprite-runner">🎮</span>
-      <span className="bg-sprite sprite-bolt">⚡</span>
-      <span className="bg-sprite sprite-orb">🔥</span>
-      {isGamer && <span className="bg-sprite sprite-star">⭐</span>}
+      <span className="mascot mascot-controller">
+        <i className="controller-body" />
+        <i className="controller-pad" />
+        <i className="controller-buttons" />
+      </span>
+
+      <span className="mascot mascot-orb">
+        <i className="orb-core" />
+        <i className="orb-spark spark-one" />
+        <i className="orb-spark spark-two" />
+      </span>
+
+      <span className="mascot mascot-dragon">
+        <i className="dragon-head" />
+        <i className="dragon-wing" />
+        <i className="dragon-fire" />
+      </span>
+
+      <span className="mascot mascot-cart">
+        <i className="cart-body" />
+        <i className="cart-label" />
+      </span>
+
+      {isGamer && (
+        <>
+          <span className="mascot mascot-coin">
+            <i />
+          </span>
+          <span className="mascot mascot-star-pixel">
+            <i />
+          </span>
+        </>
+      )}
     </div>
   );
 }
@@ -1306,6 +1349,9 @@ function VersionModal({ onClose }) {
           <li>Histórico mensal em Relatórios.</li>
           <li>Dashboard mais limpo com Gerenciamento de Vendas centralizado.</li>
           <li>Animações de fundo com modos Desativado, Discreto e Gamer.</li>
+          <li>Correção dos cálculos mensais para vendas legadas sem data de venda.</li>
+          <li>Sprites/mascotes próprios substituindo os emojis das animações.</li>
+          <li>Animações mais visíveis nos modos Discreto e Gamer.</li>
         </ul>
       </div>
     </div>
