@@ -23,7 +23,7 @@ import {
   X,
 } from "lucide-react";
 
-const APP_VERSION = "3.1.4";
+const APP_VERSION = "3.1.6";
 const STORAGE_BUCKET = "produto-imagens";
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
@@ -844,11 +844,22 @@ function ExtraCostSelector({ extraCosts, selected, toggleExtraCost }) {
 
       {!!selected.length && (
         <div className="selected-extra-list">
-          {selected.map((item) => (
-            <span key={item.custo_extra_id || item.id} className="selected-extra-chip">
-              {item.descricao} • {currency(item.valor)}
-            </span>
-          ))}
+          {selected.map((item) => {
+            const key = item.custo_extra_id || item.id;
+            return (
+              <span key={key} className="selected-extra-chip">
+                <span>{item.descricao} • {currency(item.valor)}</span>
+                <button
+                  type="button"
+                  className="selected-extra-remove"
+                  title="Remover custo deste produto"
+                  onClick={() => toggleExtraCost({ id: key })}
+                >
+                  <Trash2 size={13} />
+                </button>
+              </span>
+            );
+          })}
         </div>
       )}
 
@@ -990,7 +1001,7 @@ function CalendarEventList({ events }) {
 }
 
 function VersionModal({ onClose }) {
-  return <div className="modal-backdrop"><div className="version-modal"><div className="modal-header"><div><h2>Novidades da versão {APP_VERSION}</h2><p>Resumo da atualização.</p></div><button onClick={onClose}><X size={18} /> Fechar</button></div><ul><li>Custos extras agora abrem em popup ao clicar no botão + Custos extras.</li><li>Somente os custos extras selecionados aparecem no produto.</li><li>Calendário visual mensal com navegação entre meses.</li><li>Compras aparecem em vermelho e vendas em verde.</li><li>Ao clicar em um dia, o sistema mostra os detalhes das movimentações.</li></ul></div></div>;
+  return <div className="modal-backdrop"><div className="version-modal"><div className="modal-header"><div><h2>Novidades da versão {APP_VERSION}</h2><p>Resumo da atualização.</p></div><button onClick={onClose}><X size={18} /> Fechar</button></div><ul><li>Custos extras agora abrem em popup ao clicar no botão + Custos extras.</li><li>Somente os custos extras selecionados aparecem no produto.</li><li>Cada custo extra aplicado possui lixeira para remoção individual.</li><li>Calendário visual mensal com navegação entre meses.</li><li>Compras aparecem em vermelho e vendas em verde.</li><li>Ao clicar em um dia, o sistema mostra os detalhes das movimentações.</li></ul></div></div>;
 }
 
 function FormSection({ title, children }) { return <div className="form-section"><h3>{title}</h3>{children}</div>; }
