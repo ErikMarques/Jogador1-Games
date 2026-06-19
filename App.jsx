@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { createClient } from "@supabase/supabase-js";
 import {
   BarChart3,
@@ -25,8 +25,9 @@ import {
   X,
 } from "lucide-react";
 
-const APP_VERSION = "4.0.3";
+const APP_VERSION = "5.0";
 const STORAGE_BUCKET = "produto-imagens";
+const MASCOT_BUCKET = "mascotes";
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -164,6 +165,9 @@ export default function App() {
   const [authError, setAuthError] = useState("");
 
   const [extraCost, setExtraCost] = useState({ descricao: "", valor: "", data: "", estoqueAtual: "", estoqueMinimo: "" });
+  const [customMascots, setCustomMascots] = useState([]);
+  const [mascotForm, setMascotForm] = useState({ nome: "", tipo: "saltador", tamanho: "medio", frequencia: "normal", file: null, preview: "" });
+  const [mascotUploading, setMascotUploading] = useState(false);
   const [animationMode, setAnimationMode] = useState(() => localStorage.getItem("j1_animation_mode") || "discreto");
   const [seenAlertKeys, setSeenAlertKeys] = useState(() => {
     try { return JSON.parse(localStorage.getItem("j1_seen_alerts") || "[]"); } catch { return []; }
@@ -196,6 +200,7 @@ export default function App() {
       loadUserProfile();
       loadProfiles();
       loadExtraCosts();
+      loadMascots();
       loadProducts();
     }
   }, [user]);
@@ -234,6 +239,108 @@ export default function App() {
     if (data) {
       setExtraCosts(data.map((c) => ({ id: c.id, descricao: c.descricao, valor: Number(c.valor || 0), data: c.criado_em ? formatDateBR(c.criado_em) : "", estoqueAtual: Number(c.estoque_atual || 0), estoqueMinimo: Number(c.estoque_minimo || 0) })));
     }
+  }
+
+
+  async function loadMascots() {
+    if (!supabase) return;
+    const { data, error } = await supabase.from("mascotes").select("*").order("criado_em", { ascending: false });
+    if (error) {
+      console.warn("Não foi possível carregar mascotes:", error.message);
+      return;
+    }
+
+    setCustomMascots((data || []).map((m) => ({
+      id: m.id,
+      nome: m.nome || "Mascote",
+      imagemUrl: m.imagem_url || "",
+      tipo: m.tipo_movimento || "saltador",
+      tamanho: m.tamanho || "medio",
+      frequencia: m.frequencia || "normal",
+      status: m.status || "A",
+    })));
+  }
+
+  async function uploadMascotFile(file) {
+    if (!supabase || !file) return "";
+
+    const extension = file.name.split(".").pop()?.toLowerCase() || "png";
+    if (!["png", "webp"].includes(extension)) {
+      throw new Error("Use apenas arquivos PNG ou WebP para mascotes.");
+    }
+
+    const cleanName = file.name.replace(/[^\w.-]/g, "_");
+    const path = `${user.id}/${crypto.randomUUID()}-${cleanName}`;
+
+    const { error } = await supabase.storage.from(MASCOT_BUCKET).upload(path, file, { cacheControl: "3600", upsert: false });
+    if (error) throw error;
+
+    const { data } = supabase.storage.from(MASCOT_BUCKET).getPublicUrl(path);
+    return data.publicUrl;
+  }
+
+  async function addMascot() {
+    if (!permissions.canEdit && !permissions.canUsers) return alert("Seu perfil não permite cadastrar mascotes.");
+    if (!mascotForm.nome || !mascotForm.file) return alert("Informe o nome e selecione um PNG/WebP.");
+
+    try {
+      setMascotUploading(true);
+      const imagemUrl = await uploadMascotFile(mascotForm.file);
+
+      const row = {
+        nome: mascotForm.nome,
+        imagem_url: imagemUrl,
+        tipo_movimento: mascotForm.tipo,
+        tamanho: mascotForm.tamanho,
+        frequencia: mascotForm.frequencia,
+        status: "A",
+      };
+
+      const { data, error } = await supabase.from("mascotes").insert(row).select().single();
+      if (error) throw error;
+
+      setCustomMascots((prev) => [{
+        id: data.id,
+        nome: data.nome,
+        imagemUrl: data.imagem_url,
+        tipo: data.tipo_movimento,
+        tamanho: data.tamanho,
+        frequencia: data.frequencia,
+        status: data.status,
+      }, ...prev]);
+
+      setMascotForm({ nome: "", tipo: "saltador", tamanho: "medio", frequencia: "normal", file: null, preview: "" });
+    } catch (error) {
+      alert(`Erro ao cadastrar mascote: ${error.message}`);
+    } finally {
+      setMascotUploading(false);
+    }
+  }
+
+  async function toggleMascotStatus(id) {
+    const mascot = customMascots.find((m) => m.id === id);
+    if (!mascot) return;
+
+    const nextStatus = mascot.status === "A" ? "X" : "A";
+
+    if (supabase) {
+      const { error } = await supabase.from("mascotes").update({ status: nextStatus }).eq("id", id);
+      if (error) return alert(`Erro ao alterar mascote: ${error.message}`);
+    }
+
+    setCustomMascots((prev) => prev.map((m) => m.id === id ? { ...m, status: nextStatus } : m));
+  }
+
+  async function removeMascot(id) {
+    const confirmDelete = window.confirm("Deseja remover este mascote?");
+    if (!confirmDelete) return;
+
+    if (supabase) {
+      const { error } = await supabase.from("mascotes").delete().eq("id", id);
+      if (error) return alert(`Erro ao remover mascote: ${error.message}`);
+    }
+
+    setCustomMascots((prev) => prev.filter((m) => m.id !== id));
   }
 
   async function loadProducts() {
@@ -917,7 +1024,7 @@ const costDistribution = [
     if (activeMenu === "Manutenção") {
       return (
         <div className="maintenance-grid">
-          <ModuleCard title="Configurações visuais" subtitle="Controle das animações de fundo.">
+          <ModuleCard title="Configurações visuais" subtitle="Controle das animações e do Mundo dos Mascotes.">
             <div className="settings-row">
               <label>Animações de fundo</label>
               <select value={animationMode} onChange={(e) => setAnimationMode(e.target.value)}>
@@ -927,6 +1034,16 @@ const costDistribution = [
               </select>
             </div>
           </ModuleCard>
+
+          <MascotManager
+            mascots={customMascots}
+            form={mascotForm}
+            setForm={setMascotForm}
+            onAdd={addMascot}
+            onToggle={toggleMascotStatus}
+            onRemove={removeMascot}
+            uploading={mascotUploading}
+          />
 
           <ModuleCard title="Produtos inativos" subtitle="Produtos com status de registro X.">
             <SimpleTable headers={["Produto", "SKU", "Status", "Ação"]}>{inactiveProducts.map((p) => <tr key={p.id}><td>{p.nome}</td><td>{p.sku}</td><td>X</td><td><button onClick={() => restoreProduct(p.id)}>Restaurar</button></td></tr>)}</SimpleTable>
@@ -964,7 +1081,7 @@ const costDistribution = [
 
   return (
     <div className="app">
-      <BackgroundAnimations mode={animationMode} />
+      <BackgroundAnimations mode={animationMode} mascots={customMascots} />
       {expandedImage && <div className="image-overlay" onClick={() => setExpandedImage(null)}><img src={expandedImage} alt="Produto ampliado" /></div>}
       {calendarOpen && <CalendarModal events={calendarEvents} onClose={() => setCalendarOpen(false)} />}
       {alertsOpen && <AlertsModal alerts={systemAlerts} unreadKeys={unreadAlerts.map((alert) => alert.key)} onClose={() => setAlertsOpen(false)} onMarkSeen={markAlertAsSeen} onMarkAll={markAllAlertsAsSeen} />}
@@ -1167,48 +1284,325 @@ function AlertsModal({ alerts, unreadKeys, onClose, onMarkSeen, onMarkAll }) {
   );
 }
 
-function BackgroundAnimations({ mode }) {
-  if (mode === "desativado") return null;
 
-  const isGamer = mode === "gamer";
+function MascotManager({ mascots, form, setForm, onAdd, onToggle, onRemove, uploading }) {
+  function handleFile(event) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setForm({
+      ...form,
+      file,
+      preview: URL.createObjectURL(file),
+      nome: form.nome || file.name.replace(/\.(png|webp)$/i, ""),
+    });
+
+    event.target.value = "";
+  }
 
   return (
-    <div className={`background-animations ${isGamer ? "gamer" : "discreto"}`} aria-hidden="true">
-      <span className="mascot mascot-controller">
-        <i className="controller-body" />
-        <i className="controller-pad" />
-        <i className="controller-buttons" />
-      </span>
+    <ModuleCard title="Mascotes personalizados" subtitle="Importe PNG/WebP e escolha como ele se comporta no Mundo dos Mascotes.">
+      <div className="mascot-upload-grid">
+        <div className="mascot-preview-box">
+          {form.preview ? <img src={form.preview} alt="Preview do mascote" /> : <Gamepad2 size={44} />}
+          <small>Use PNG/WebP com fundo transparente para melhor resultado.</small>
+        </div>
 
-      <span className="mascot mascot-orb">
-        <i className="orb-core" />
-        <i className="orb-spark spark-one" />
-        <i className="orb-spark spark-two" />
-      </span>
+        <div className="mascot-form-grid">
+          <input placeholder="Nome do mascote" value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} />
+          <select value={form.tipo} onChange={(e) => setForm({ ...form, tipo: e.target.value })}>
+            <option value="saltador">Saltador</option>
+            <option value="voador">Voador</option>
+            <option value="quicante">Quicante</option>
+            <option value="eletrico">Elétrico</option>
+            <option value="dragao">Dragão / Fogo</option>
+          </select>
+          <select value={form.tamanho} onChange={(e) => setForm({ ...form, tamanho: e.target.value })}>
+            <option value="pequeno">Pequeno</option>
+            <option value="medio">Médio</option>
+            <option value="grande">Grande</option>
+          </select>
+          <select value={form.frequencia} onChange={(e) => setForm({ ...form, frequencia: e.target.value })}>
+            <option value="baixa">Frequência baixa</option>
+            <option value="normal">Frequência normal</option>
+            <option value="alta">Frequência alta</option>
+          </select>
+          <label className="mascot-file-button">
+            Escolher PNG/WebP
+            <input type="file" accept="image/png,image/webp" onChange={handleFile} />
+          </label>
+          <button onClick={onAdd} disabled={uploading}>{uploading ? "Enviando..." : "+ Adicionar mascote"}</button>
+        </div>
+      </div>
 
-      <span className="mascot mascot-dragon">
-        <i className="dragon-head" />
-        <i className="dragon-wing" />
-        <i className="dragon-fire" />
-      </span>
+      <SimpleTable headers={["Mascote", "Tipo", "Tamanho", "Status", "Ações"]}>
+        {mascots.map((m) => (
+          <tr key={m.id}>
+            <td>
+              <div className="mascot-table-cell">
+                <img src={m.imagemUrl} alt={m.nome} />
+                <strong>{m.nome}</strong>
+              </div>
+            </td>
+            <td>{m.tipo}</td>
+            <td>{m.tamanho}</td>
+            <td><Status status={m.status === "A" ? "Ativo" : "Inativo"} /></td>
+            <td className="right mascot-actions">
+              <button onClick={() => onToggle(m.id)}>{m.status === "A" ? "Inativar" : "Ativar"}</button>
+              <button className="icon-btn danger" onClick={() => onRemove(m.id)}><Trash2 size={18} /></button>
+            </td>
+          </tr>
+        ))}
+      </SimpleTable>
+    </ModuleCard>
+  );
+}
 
-      <span className="mascot mascot-cart">
-        <i className="cart-body" />
-        <i className="cart-label" />
-      </span>
+function BackgroundAnimations({ mode, mascots = [] }) {
+  const [sprites, setSprites] = useState([]);
+  const frameRef = useRef(null);
+  const lastRef = useRef(0);
+  const platformsRef = useRef([]);
 
-      {isGamer && (
-        <>
-          <span className="mascot mascot-coin">
-            <i />
-          </span>
-          <span className="mascot mascot-star-pixel">
-            <i />
-          </span>
-        </>
-      )}
+  const activeCustomMascots = useMemo(() => {
+    return (mascots || []).filter((m) => m.status === "A" && m.imagemUrl);
+  }, [mascots]);
+
+  useEffect(() => {
+    if (mode === "desativado") {
+      setSprites([]);
+      return;
+    }
+
+    const width = window.innerWidth || 1200;
+    const height = window.innerHeight || 760;
+    const isGamer = mode === "gamer";
+
+    const native = [
+      { id: "native-runner", nome: "Pixel Runner", tipo: "saltador", native: "runner", tamanho: "medio" },
+      { id: "native-orb", nome: "Orb Elétrica", tipo: "eletrico", native: "orb", tamanho: "pequeno" },
+      { id: "native-dragon", nome: "Drako", tipo: "dragao", native: "dragon", tamanho: "grande" },
+      { id: "native-cart", nome: "Cartucho", tipo: "quicante", native: "cart", tamanho: "pequeno" },
+    ];
+
+    const custom = activeCustomMascots.map((m) => ({
+      id: `custom-${m.id}`,
+      nome: m.nome,
+      tipo: m.tipo || "saltador",
+      src: m.imagemUrl,
+      tamanho: m.tamanho || "medio",
+      custom: true,
+    }));
+
+    const baseList = isGamer ? [...native, ...custom] : [...native.slice(0, 3), ...custom.slice(0, 2)];
+
+    setSprites(baseList.map((m, index) => createMascotSprite(m, index, width, height)));
+  }, [mode, activeCustomMascots]);
+
+  useEffect(() => {
+    if (mode === "desativado" || !sprites.length) return;
+
+    function refreshPlatforms() {
+      const selectors = [
+        ".sidebar",
+        ".topbar",
+        ".stat-card",
+        ".dashboard-sales-management .module-card",
+        ".version-footer",
+      ];
+
+      platformsRef.current = selectors
+        .flatMap((selector) => Array.from(document.querySelectorAll(selector)))
+        .map((element) => {
+          const r = element.getBoundingClientRect();
+          return { x: r.left, y: r.top, w: r.width, h: r.height };
+        })
+        .filter((r) => r.w > 40 && r.h > 20);
+    }
+
+    refreshPlatforms();
+    window.addEventListener("resize", refreshPlatforms);
+    const platformInterval = window.setInterval(refreshPlatforms, 1200);
+
+    function tick(time) {
+      const width = window.innerWidth || 1200;
+      const height = window.innerHeight || 760;
+      const dt = Math.min(34, time - (lastRef.current || time));
+      lastRef.current = time;
+
+      setSprites((prev) => prev.map((sprite) => stepMascotSprite(sprite, dt / 16.67, width, height, platformsRef.current, mode)));
+
+      frameRef.current = requestAnimationFrame(tick);
+    }
+
+    frameRef.current = requestAnimationFrame(tick);
+
+    return () => {
+      window.removeEventListener("resize", refreshPlatforms);
+      window.clearInterval(platformInterval);
+      if (frameRef.current) cancelAnimationFrame(frameRef.current);
+    };
+  }, [mode, sprites.length]);
+
+  if (mode === "desativado" || !sprites.length) return null;
+
+  return (
+    <div className={`mascot-world ${mode}`} aria-hidden="true">
+      {sprites.map((sprite) => (
+        <div
+          key={sprite.id}
+          className={`world-mascot ${sprite.native ? `native-${sprite.native}` : "custom-mascot"} ${sprite.tipo} ${sprite.facing < 0 ? "flip" : ""}`}
+          style={{
+            transform: `translate3d(${sprite.x}px, ${sprite.y}px, 0)`,
+            width: sprite.size,
+            height: sprite.size,
+            opacity: sprite.opacity,
+          }}
+        >
+          {sprite.src ? (
+            <img src={sprite.src} alt="" />
+          ) : (
+            <NativeMascot type={sprite.native} />
+          )}
+          {sprite.fireTimer > 0 && <span className="mascot-fire-breath" />}
+          {sprite.sparkTimer > 0 && <span className="mascot-spark-field" />}
+        </div>
+      ))}
     </div>
   );
+}
+
+function createMascotSprite(mascot, index, width, height) {
+  const sizeMap = { pequeno: 38, medio: 54, grande: 76 };
+  const size = sizeMap[mascot.tamanho] || sizeMap.medio;
+  const type = mascot.tipo || "saltador";
+  const fromLeft = index % 2 === 0;
+
+  return {
+    ...mascot,
+    tipo: type,
+    size,
+    x: fromLeft ? -size - (index * 36) : width + (index * 42),
+    y: Math.max(90, Math.min(height - 160, 130 + (index * 82) % Math.max(180, height - 220))),
+    vx: fromLeft ? 1.5 + (index % 3) * 0.32 : -1.5 - (index % 3) * 0.28,
+    vy: type === "voador" || type === "dragao" || type === "eletrico" ? 0 : -1,
+    grounded: false,
+    facing: fromLeft ? 1 : -1,
+    opacity: 0.92,
+    jumpCooldown: 30 + index * 14,
+    fireTimer: 0,
+    sparkTimer: 0,
+    life: 0,
+  };
+}
+
+function resetMascot(sprite, width, height) {
+  const fromLeft = Math.random() > 0.5;
+  return {
+    ...sprite,
+    x: fromLeft ? -sprite.size - 30 : width + 30,
+    y: Math.max(90, Math.min(height - 120, 120 + Math.random() * Math.max(120, height - 260))),
+    vx: fromLeft ? Math.abs(sprite.vx || 1.6) : -Math.abs(sprite.vx || 1.6),
+    vy: sprite.tipo === "saltador" || sprite.tipo === "quicante" ? -4 : 0,
+    facing: fromLeft ? 1 : -1,
+    fireTimer: 0,
+    sparkTimer: 0,
+    life: 0,
+  };
+}
+
+function stepMascotSprite(sprite, dt, width, height, platforms, mode) {
+  let next = { ...sprite };
+  const speedMultiplier = mode === "gamer" ? 1.22 : 0.9;
+  const gravity = next.tipo === "voador" || next.tipo === "dragao" || next.tipo === "eletrico" ? 0.02 : 0.34;
+  const floor = height - 92 - next.size;
+
+  next.life += dt;
+  next.x += next.vx * speedMultiplier * dt;
+  next.y += next.vy * dt;
+  next.vy += gravity * dt;
+  next.jumpCooldown -= dt;
+  next.fireTimer = Math.max(0, next.fireTimer - dt);
+  next.sparkTimer = Math.max(0, next.sparkTimer - dt);
+  next.facing = next.vx >= 0 ? 1 : -1;
+
+  if (next.tipo === "voador" || next.tipo === "dragao" || next.tipo === "eletrico") {
+    next.y += Math.sin((next.life + next.size) / 18) * (next.tipo === "eletrico" ? 1.6 : 0.8);
+
+    for (const p of platforms) {
+      const nearX = next.x + next.size > p.x - 30 && next.x < p.x + p.w + 30;
+      const nearY = next.y + next.size > p.y - 25 && next.y < p.y + p.h + 25;
+
+      if (nearX && nearY) {
+        if (next.y + next.size / 2 < p.y + p.h / 2) next.y = p.y - next.size - 10;
+        else next.y = p.y + p.h + 10;
+        next.vy *= -0.25;
+      }
+    }
+
+    if (next.tipo === "dragao" && next.life % 160 < 2) next.fireTimer = 46;
+    if (next.tipo === "eletrico" && next.life % 110 < 2) next.sparkTimer = 34;
+  } else {
+    next.grounded = false;
+
+    for (const p of platforms) {
+      const horizontal = next.x + next.size > p.x && next.x < p.x + p.w;
+      const vertical = next.y + next.size > p.y && next.y < p.y + p.h;
+
+      if (horizontal && vertical) {
+        const prevBottom = sprite.y + sprite.size;
+
+        if (prevBottom <= p.y + 10 && next.vy >= 0) {
+          next.y = p.y - next.size - 1;
+          next.vy = 0;
+          next.grounded = true;
+
+          if ((next.tipo === "saltador" || next.tipo === "quicante") && next.jumpCooldown <= 0) {
+            next.vy = next.tipo === "quicante" ? -8.5 : -6.8;
+            next.jumpCooldown = next.tipo === "quicante" ? 55 : 85;
+          }
+        } else {
+          next.vx = -next.vx;
+          next.x += next.vx * 8;
+
+          if (next.tipo === "saltador") {
+            next.vy = -7.4;
+            next.y -= 8;
+          }
+        }
+      }
+    }
+
+    if (next.y >= floor) {
+      next.y = floor;
+      next.vy = next.tipo === "quicante" ? -8 : 0;
+      next.grounded = true;
+
+      if (next.tipo === "saltador" && next.jumpCooldown <= 0) {
+        next.vy = -7.5;
+        next.jumpCooldown = 95;
+      }
+    }
+  }
+
+  if (next.y < 48) {
+    next.y = 48;
+    next.vy = Math.abs(next.vy) * 0.6;
+  }
+
+  if (next.x > width + 160 || next.x < -180 || next.y > height + 160) {
+    next = resetMascot(next, width, height);
+  }
+
+  return next;
+}
+
+function NativeMascot({ type }) {
+  if (type === "runner") return <><i className="native-runner-body" /><i className="native-runner-eye" /><i className="native-runner-feet" /></>;
+  if (type === "orb") return <><i className="native-orb-core" /><i className="native-orb-bolt one" /><i className="native-orb-bolt two" /></>;
+  if (type === "dragon") return <><i className="native-dragon-wing" /><i className="native-dragon-body" /><i className="native-dragon-eye" /></>;
+  if (type === "cart") return <><i className="native-cart-body" /><i className="native-cart-label" /></>;
+  return <i className="native-runner-body" />;
 }
 
 function MonthlyHistory({ data }) {
@@ -1350,9 +1744,11 @@ function VersionModal({ onClose }) {
           <li>Dashboard mais limpo com Gerenciamento de Vendas centralizado.</li>
           <li>Animações de fundo com modos Desativado, Discreto e Gamer.</li>
           <li>Correção dos cálculos mensais para vendas legadas sem data de venda.</li>
-          <li>Sprites/mascotes próprios substituindo os emojis das animações.</li>
-          <li>Animações mais visíveis nos modos Discreto e Gamer.</li>
-          <li>Camada dos sprites corrigida para ficarem visíveis sobre o fundo do sistema.</li>
+          <li>Mundo dos Mascotes com física leve, gravidade e colisão com cards/menus.</li>
+          <li>Mascotes nativos com comportamento próprio: saltador, elétrico, quicante e dragão com fogo.</li>
+          <li>Upload de mascotes personalizados em Manutenção.</li>
+          <li>PNG/WebP importado passa a ser usado no Mundo dos Mascotes.</li>
+          <li>Tipos de movimento: Saltador, Voador, Quicante, Elétrico e Dragão/Fogo.</li>
         </ul>
       </div>
     </div>
