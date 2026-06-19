@@ -1,4 +1,4 @@
-/* Jogador1 Games - v5.1.2 */
+/* Jogador1 Games - v5.1.4 */
 * { box-sizing: border-box; }
 html, body, #root { min-height: 100%; }
 body {
@@ -2347,5 +2347,173 @@ tr td:last-child { border-radius: 0 16px 16px 0; }
 @media (max-width: 720px) {
   .sales-actions-cell {
     justify-content: flex-start;
+  }
+}
+
+
+/* Jogador1 Games - v5.1.3 */
+/* Estabilização da física dos mascotes */
+
+.world-mascot {
+  transition: opacity .25s linear;
+}
+
+.motion-saltador .custom-2-5d-shell {
+  animation-duration: 1.05s !important;
+}
+
+.motion-quicante .custom-2-5d-shell {
+  animation-duration: .82s !important;
+}
+
+.motion-voador .custom-2-5d-shell,
+.motion-dragao .custom-2-5d-shell {
+  animation-duration: 1.25s !important;
+}
+
+.motion-eletrico .custom-2-5d-shell {
+  animation-duration: .58s !important;
+}
+
+.native-orb-bolt.one,
+.native-orb-bolt.two {
+  opacity: .82;
+}
+
+.mascot-world.discreto .world-mascot {
+  opacity: .84 !important;
+}
+
+.mascot-world.gamer .world-mascot {
+  opacity: .94 !important;
+}
+
+.mascot-fire-breath {
+  animation-duration: .46s !important;
+}
+
+
+/* Jogador1 Games - v5.1.4 */
+/* Correção dos modais: alertas/cadastro não abrem mais presos no cabeçalho */
+
+.modal-backdrop,
+.nested-modal-backdrop,
+.image-overlay {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 9999 !important;
+  display: grid !important;
+  place-items: start center !important;
+  align-items: start !important;
+  justify-items: center !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  padding: clamp(18px, 4vh, 42px) 18px !important;
+  background: rgba(0, 0, 0, .82) !important;
+  backdrop-filter: blur(6px) !important;
+  overscroll-behavior: contain !important;
+}
+
+.nested-modal-backdrop {
+  z-index: 10020 !important;
+}
+
+.image-overlay {
+  z-index: 10040 !important;
+  place-items: center !important;
+  align-items: center !important;
+}
+
+.product-modal,
+.version-modal,
+.extra-cost-modal,
+.visual-calendar-modal,
+.calendar-modal {
+  position: relative !important;
+  z-index: 10001 !important;
+  margin: 0 auto !important;
+  width: min(1040px, calc(100vw - 36px)) !important;
+  max-height: calc(100dvh - 84px) !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  transform: none !important;
+}
+
+.product-modal {
+  width: min(1120px, calc(100vw - 36px)) !important;
+}
+
+.version-modal,
+.alerts-modal {
+  width: min(760px, calc(100vw - 36px)) !important;
+}
+
+.alerts-modal {
+  max-height: calc(100dvh - 84px) !important;
+}
+
+.alerts-list {
+  max-height: min(62dvh, 620px);
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.extra-cost-modal {
+  width: min(620px, calc(100vw - 36px)) !important;
+  max-height: calc(100dvh - 84px) !important;
+}
+
+.modal-header {
+  position: sticky;
+  top: -24px;
+  z-index: 3;
+  background: linear-gradient(180deg, #111114 0%, rgba(17,17,20,.96) 82%, rgba(17,17,20,0) 100%);
+  padding-top: 2px;
+  padding-bottom: 12px;
+}
+
+.product-modal .modal-header,
+.version-modal .modal-header,
+.extra-cost-modal .modal-header {
+  border-radius: 22px 22px 0 0;
+}
+
+.modal-backdrop > *,
+.nested-modal-backdrop > * {
+  animation: modal-safe-enter .16s ease-out;
+}
+
+@keyframes modal-safe-enter {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@media (max-width: 720px) {
+  .modal-backdrop,
+  .nested-modal-backdrop,
+  .image-overlay {
+    padding: 12px !important;
+  }
+
+  .product-modal,
+  .version-modal,
+  .extra-cost-modal,
+  .visual-calendar-modal,
+  .calendar-modal {
+    width: calc(100vw - 24px) !important;
+    max-height: calc(100dvh - 24px) !important;
+    border-radius: 22px !important;
+  }
+
+  .modal-header {
+    top: -18px;
+    flex-direction: column;
+    align-items: flex-start;
   }
 }
