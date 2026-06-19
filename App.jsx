@@ -25,7 +25,7 @@ import {
   X,
 } from "lucide-react";
 
-const APP_VERSION = "5.1.2";
+const APP_VERSION = "5.1.4";
 const STORAGE_BUCKET = "produto-imagens";
 const MASCOT_BUCKET = "mascotes";
 
@@ -1690,7 +1690,8 @@ function BackgroundAnimations({ mode, mascots = [] }) {
       custom: !m.native,
     }));
 
-    const listToRender = isGamer ? baseList : baseList.slice(0, Math.min(baseList.length, 6));
+    const visibleLimit = isGamer ? 6 : 4;
+    const listToRender = baseList.slice(0, Math.min(baseList.length, visibleLimit));
     setSprites(listToRender.map((m, index) => createMascotSprite(m, index, width, height, mode)));
   }, [mode, activeMascots]);
 
@@ -1703,7 +1704,6 @@ function BackgroundAnimations({ mode, mascots = [] }) {
         ".topbar",
         ".stat-card",
         ".dashboard-sales-management .module-card",
-        ".module-card",
         ".version-footer",
       ];
 
@@ -1776,44 +1776,47 @@ function BackgroundAnimations({ mode, mascots = [] }) {
 }
 
 function createMascotSprite(mascot, index, width, height, mode = "discreto") {
-  const sizeMap = { pequeno: 42, medio: 60, grande: 82 };
+  const sizeMap = { pequeno: 38, medio: 54, grande: 72 };
   const size = sizeMap[mascot.tamanho] || sizeMap.medio;
   const type = mascot.tipo || "saltador";
   const fromLeft = index % 2 === 0;
-  const freqBoost = mascot.frequencia === "alta" ? 1.32 : mascot.frequencia === "baixa" ? 0.72 : 1;
-  const speedBase = (mode === "gamer" ? 2.15 : 1.55) * freqBoost;
+  const freqBoost = mascot.frequencia === "alta" ? 1.08 : mascot.frequencia === "baixa" ? 0.78 : 0.92;
+  const speedBase = (mode === "gamer" ? 1.12 : 0.72) * freqBoost;
   const flyer = type === "voador" || type === "dragao" || type === "eletrico";
+  const floor = height - 96 - size;
+  const lane = 86 + (index * 88) % Math.max(160, height - 260);
 
   return {
     ...mascot,
     tipo: type,
     size,
-    x: fromLeft ? -size - 40 - (index * 24) : width + 40 + (index * 24),
-    y: flyer ? Math.max(90, Math.min(height - 180, 100 + (index * 76) % Math.max(180, height - 260))) : Math.max(120, height - 140 - size - ((index % 3) * 36)),
+    x: fromLeft ? Math.max(18, 42 + index * 28) : Math.max(18, width - size - 70 - index * 28),
+    y: flyer ? Math.max(78, Math.min(height - 170, lane)) : Math.max(120, floor - ((index % 3) * 28)),
     vx: fromLeft ? speedBase : -speedBase,
-    vy: flyer ? (index % 2 ? 0.35 : -0.25) : -4.5,
+    vy: flyer ? (index % 2 ? 0.12 : -0.12) : 0,
     grounded: false,
     facing: fromLeft ? 1 : -1,
-    opacity: 0.96,
-    jumpCooldown: 35 + index * 16,
+    opacity: 0.94,
+    jumpCooldown: 110 + index * 34,
     avoidTimer: 0,
     fireTimer: 0,
     sparkTimer: 0,
     jumpDust: 0,
-    life: Math.random() * 120,
+    life: Math.random() * 80,
+    restTimer: 30 + index * 12,
   };
 }
 
 function resetMascot(sprite, width, height) {
-  const fromLeft = Math.random() > 0.5;
   const flyer = sprite.tipo === "voador" || sprite.tipo === "dragao" || sprite.tipo === "eletrico";
+  const floor = height - 96 - sprite.size;
+
   return {
     ...sprite,
-    x: fromLeft ? -sprite.size - 60 : width + 60,
-    y: flyer ? Math.max(90, Math.min(height - 180, 120 + Math.random() * Math.max(120, height - 280))) : height - 130 - sprite.size,
-    vx: fromLeft ? Math.abs(sprite.vx || 1.7) : -Math.abs(sprite.vx || 1.7),
-    vy: flyer ? 0 : -5.5,
-    facing: fromLeft ? 1 : -1,
+    x: Math.max(24, Math.min(width - sprite.size - 24, sprite.x || 60)),
+    y: flyer ? Math.max(76, Math.min(height - 170, sprite.y || 110)) : Math.max(120, floor),
+    vx: sprite.vx || 0.7,
+    vy: flyer ? 0 : 0,
     fireTimer: 0,
     sparkTimer: 0,
     jumpDust: 0,
@@ -1830,47 +1833,74 @@ function stepMascotSprite(sprite, dt, width, height, platforms, mode) {
   let next = { ...sprite };
   const isFlyer = next.tipo === "voador" || next.tipo === "dragao" || next.tipo === "eletrico";
   const isBouncer = next.tipo === "quicante";
-  const floor = height - 92 - next.size;
-  const speedMultiplier = mode === "gamer" ? 1.12 : 0.94;
-  const gravity = isFlyer ? 0.018 : 0.36;
+  const floor = height - 96 - next.size;
+  const leftBound = 12;
+  const rightBound = Math.max(12, width - next.size - 12);
+  const topBound = 58;
+  const speedMultiplier = mode === "gamer" ? 1.04 : 0.88;
+  const gravity = isFlyer ? 0.006 : 0.18;
+  const maxVx = mode === "gamer" ? 1.35 : 0.95;
+  const maxVy = isFlyer ? 1.55 : 6.5;
 
   next.life += dt;
   next.avoidTimer = Math.max(0, next.avoidTimer - dt);
   next.jumpCooldown = Math.max(0, next.jumpCooldown - dt);
+  next.restTimer = Math.max(0, (next.restTimer || 0) - dt);
   next.fireTimer = Math.max(0, next.fireTimer - dt);
   next.sparkTimer = Math.max(0, next.sparkTimer - dt);
   next.jumpDust = Math.max(0, next.jumpDust - dt);
+
+  if (Math.abs(next.vx) > maxVx) next.vx = Math.sign(next.vx) * maxVx;
+  if (Math.abs(next.vy) > maxVy) next.vy = Math.sign(next.vy) * maxVy;
+
   next.facing = next.vx >= 0 ? 1 : -1;
 
   if (isFlyer) {
+    const wave = Math.sin((next.life + next.size) / 28) * (next.tipo === "eletrico" ? 0.62 : 0.38);
     next.x += next.vx * speedMultiplier * dt;
-    next.y += (next.vy + Math.sin((next.life + next.size) / 18) * (next.tipo === "eletrico" ? 1.8 : 1.0)) * dt;
-    next.vy += Math.sin(next.life / 24) * 0.025;
+    next.y += (next.vy + wave) * dt;
+    next.vy += Math.sin(next.life / 42) * 0.01;
 
     for (const p of platforms) {
       if (!intersectsSprite(next, p)) continue;
+
+      const spriteCenterX = next.x + next.size / 2;
       const spriteCenterY = next.y + next.size / 2;
+      const platformCenterX = p.x + p.w / 2;
       const platformCenterY = p.y + p.h / 2;
-      next.vy += spriteCenterY < platformCenterY ? -0.85 : 0.85;
-      next.y += spriteCenterY < platformCenterY ? -12 : 12;
-      if (next.avoidTimer <= 0 && Math.random() > 0.65) {
-        next.vx = -next.vx;
-        next.avoidTimer = 28;
-      }
+
+      const pushX = spriteCenterX < platformCenterX ? -0.35 : 0.35;
+      const pushY = spriteCenterY < platformCenterY ? -0.42 : 0.42;
+
+      next.vx += pushX;
+      next.vy += pushY;
+      next.x += pushX * 14;
+      next.y += pushY * 14;
+      next.avoidTimer = 36;
     }
 
-    if (next.y < 64) {
-      next.y = 64;
-      next.vy = Math.abs(next.vy) + 0.35;
+    if (next.x <= leftBound) {
+      next.x = leftBound;
+      next.vx = Math.abs(next.vx || 0.65);
     }
 
-    if (next.y > floor) {
+    if (next.x >= rightBound) {
+      next.x = rightBound;
+      next.vx = -Math.abs(next.vx || 0.65);
+    }
+
+    if (next.y <= topBound) {
+      next.y = topBound;
+      next.vy = Math.abs(next.vy || 0.25);
+    }
+
+    if (next.y >= floor) {
       next.y = floor;
-      next.vy = -Math.abs(next.vy || 0.8);
+      next.vy = -Math.abs(next.vy || 0.45);
     }
 
-    if (next.tipo === "dragao" && next.life % 115 < 2.4) next.fireTimer = 58;
-    if (next.tipo === "eletrico" && next.life % 76 < 2.2) next.sparkTimer = 38;
+    if (next.tipo === "dragao" && next.life % 180 < 2.0) next.fireTimer = 70;
+    if (next.tipo === "eletrico" && next.life % 120 < 1.8) next.sparkTimer = 42;
   } else {
     const prev = { x: next.x, y: next.y };
     next.x += next.vx * speedMultiplier * dt;
@@ -1883,60 +1913,71 @@ function stepMascotSprite(sprite, dt, width, height, platforms, mode) {
 
       const prevBottom = prev.y + next.size;
       const nextBottom = next.y + next.size;
-      const horizontalOverlap = next.x + next.size > p.x + 6 && next.x < p.x + p.w - 6;
+      const horizontalOverlap = next.x + next.size > p.x + 8 && next.x < p.x + p.w - 8;
 
-      if (horizontalOverlap && prevBottom <= p.y + 12 && nextBottom >= p.y && next.vy >= 0) {
+      if (horizontalOverlap && prevBottom <= p.y + 14 && nextBottom >= p.y && next.vy >= 0) {
         next.y = p.y - next.size - 1;
         next.vy = 0;
         next.grounded = true;
 
-        if (next.jumpCooldown <= 0) {
-          next.vy = isBouncer ? -9.2 : -7.2;
-          next.jumpCooldown = isBouncer ? 44 : 82;
-          next.jumpDust = 15;
+        if (next.jumpCooldown <= 0 && (isBouncer || next.tipo === "saltador")) {
+          next.vy = isBouncer ? -4.8 : -3.9;
+          next.jumpCooldown = isBouncer ? 92 : 150;
+          next.jumpDust = 12;
         }
 
         continue;
       }
 
       if (next.avoidTimer <= 0) {
-        const fromLeft = prev.x + next.size <= p.x + 8;
-        const fromRight = prev.x >= p.x + p.w - 8;
+        const fromLeft = prev.x + next.size <= p.x + 10;
+        const fromRight = prev.x >= p.x + p.w - 10;
 
-        if (fromLeft) next.x = p.x - next.size - 8;
-        else if (fromRight) next.x = p.x + p.w + 8;
-        else next.y = p.y - next.size - 8;
+        if (fromLeft) next.x = p.x - next.size - 7;
+        else if (fromRight) next.x = p.x + p.w + 7;
+        else next.y = p.y - next.size - 7;
 
-        next.vx = -next.vx;
-        next.vy = isBouncer ? -8.5 : -7.8;
-        next.jumpDust = 18;
-        next.avoidTimer = 22;
+        next.vx = -next.vx * 0.86;
+        next.vy = isBouncer ? -4.9 : -3.8;
+        next.jumpDust = 14;
+        next.avoidTimer = 48;
       }
+    }
+
+    if (next.x <= leftBound) {
+      next.x = leftBound;
+      next.vx = Math.abs(next.vx || 0.55);
+    }
+
+    if (next.x >= rightBound) {
+      next.x = rightBound;
+      next.vx = -Math.abs(next.vx || 0.55);
     }
 
     if (next.y >= floor) {
       next.y = floor;
       next.grounded = true;
 
-      if (isBouncer) {
-        next.vy = -8.4;
-        next.jumpDust = 12;
-      } else if (next.jumpCooldown <= 0) {
-        next.vy = -7.2;
-        next.jumpCooldown = 90;
-        next.jumpDust = 12;
+      if (isBouncer && next.jumpCooldown <= 0) {
+        next.vy = -4.8;
+        next.jumpCooldown = 88;
+        next.jumpDust = 10;
+      } else if (next.tipo === "saltador" && next.jumpCooldown <= 0) {
+        next.vy = -3.8;
+        next.jumpCooldown = 145;
+        next.jumpDust = 10;
       } else {
         next.vy = 0;
       }
     }
 
-    if (next.y < 52) {
-      next.y = 52;
-      next.vy = Math.abs(next.vy) * 0.6;
+    if (next.y <= topBound) {
+      next.y = topBound;
+      next.vy = Math.abs(next.vy) * 0.4;
     }
   }
 
-  if (next.x > width + 190 || next.x < -220 || next.y > height + 180) {
+  if (!Number.isFinite(next.x) || !Number.isFinite(next.y) || next.y > height + 120) {
     next = resetMascot(next, width, height);
   }
 
@@ -2105,6 +2146,8 @@ function VersionModal({ onClose }) {
           <li>Remoção automática de fundo branco no upload de PNG/WebP.</li>
           <li>Gerenciamento de Vendas ampliado e responsivo.</li>
           <li>Lápis nas vendas concluídas para editar venda real, data e informações do produto vendido.</li>
+          <li>Física dos mascotes estabilizada: movimento mais lento, gravidade mais natural e sem sumir pelas laterais.</li>
+          <li>Modais de alertas e cadastro corrigidos para abrir corretamente sobre o sistema.</li>
           <li>Tipos de movimento: Saltador, Voador, Quicante, Elétrico e Dragão/Fogo.</li>
         </ul>
       </div>
