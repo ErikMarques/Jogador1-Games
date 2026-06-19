@@ -1,4 +1,4 @@
-/* Jogador1 Games - v4.0.2 */
+/* Jogador1 Games - v4.0.3 */
 * { box-sizing: border-box; }
 html, body, #root { min-height: 100%; }
 body {
@@ -1253,5 +1253,136 @@ tr td:last-child { border-radius: 0 16px 16px 0; }
 @media (max-width: 680px) {
   .background-animations {
     display: none;
+  }
+}
+
+
+/* Jogador1 Games - v4.0.3 */
+/* Correção: sprites agora aparecem acima do fundo do sistema, sem bloquear cliques */
+
+.background-animations {
+  z-index: 8 !important;
+  pointer-events: none !important;
+  mix-blend-mode: normal;
+}
+
+.layout {
+  position: relative;
+  z-index: 2;
+}
+
+.modal-backdrop,
+.image-overlay {
+  z-index: 50 !important;
+}
+
+.background-animations .mascot {
+  opacity: 0;
+  pointer-events: none !important;
+  will-change: transform, opacity;
+}
+
+.background-animations.discreto .mascot {
+  animation-duration: 10s !important;
+}
+
+.background-animations.gamer .mascot {
+  animation-duration: 6.5s !important;
+}
+
+.mascot-controller {
+  top: 23% !important;
+}
+
+.mascot-orb {
+  top: 42% !important;
+}
+
+.mascot-dragon {
+  bottom: 23% !important;
+}
+
+.mascot-cart {
+  top: 63% !important;
+}
+
+@keyframes mascot-controller-run {
+  0%, 4% { transform: translateX(-90px) translateY(0) rotate(-8deg); opacity: 0; }
+  8% { opacity: .92; }
+  24% { transform: translateX(24vw) translateY(-34px) rotate(8deg); opacity: .96; }
+  42% { transform: translateX(46vw) translateY(24px) rotate(-10deg); opacity: .92; }
+  62% { transform: translateX(68vw) translateY(-18px) rotate(7deg); opacity: .86; }
+  82% { transform: translateX(92vw) translateY(12px) rotate(10deg); opacity: .72; }
+  100% { transform: translateX(112vw) translateY(0) rotate(10deg); opacity: 0; }
+}
+
+@keyframes mascot-orb-flight {
+  0%, 8% { transform: translateX(90px) translateY(0) scale(.86); opacity: 0; }
+  12% { opacity: .9; }
+  30% { transform: translateX(-22vw) translateY(-28px) scale(1.08); opacity: .96; }
+  48% { transform: translateX(-48vw) translateY(20px) scale(.98); opacity: .9; }
+  68% { transform: translateX(-76vw) translateY(-14px) scale(.92); opacity: .78; }
+  100% { transform: translateX(-112vw) translateY(-8px) scale(.82); opacity: 0; }
+}
+
+@keyframes mascot-dragon-fly {
+  0%, 10% { transform: translateX(-100px) translateY(0) scale(.9); opacity: 0; }
+  14% { opacity: .88; }
+  32% { transform: translateX(24vw) translateY(-24px) scale(1.04); opacity: .96; }
+  52% { transform: translateX(52vw) translateY(16px) scale(.98); opacity: .88; }
+  74% { transform: translateX(82vw) translateY(-18px) scale(.92); opacity: .72; }
+  100% { transform: translateX(114vw) translateY(-16px) scale(.9); opacity: 0; }
+}
+
+@keyframes mascot-cart-slide {
+  0%, 12% { transform: translateX(90px) rotate(0deg); opacity: 0; }
+  16% { opacity: .86; }
+  34% { transform: translateX(-24vw) rotate(-8deg); opacity: .94; }
+  54% { transform: translateX(-52vw) rotate(8deg); opacity: .86; }
+  76% { transform: translateX(-84vw) rotate(-4deg); opacity: .72; }
+  100% { transform: translateX(-114vw) rotate(0deg); opacity: 0; }
+}
+
+@keyframes mascot-coin-pop {
+  0%, 18% { transform: translateY(0) scale(.4) rotateY(0deg); opacity: 0; }
+  24% { opacity: .9; }
+  42% { transform: translateY(-78px) scale(1.1) rotateY(180deg); opacity: .98; }
+  64% { transform: translateY(-132px) scale(.8) rotateY(360deg); opacity: .76; }
+  100% { transform: translateY(-180px) scale(.55) rotateY(480deg); opacity: 0; }
+}
+
+@keyframes mascot-star-drop {
+  0%, 16% { transform: translateY(-70px) rotate(0deg) scale(.5); opacity: 0; }
+  22% { opacity: .9; }
+  42% { transform: translateY(45px) rotate(180deg) scale(1.08); opacity: .98; }
+  66% { transform: translateY(140px) rotate(300deg) scale(.8); opacity: .72; }
+  100% { transform: translateY(220px) rotate(420deg) scale(.6); opacity: 0; }
+}
+
+.background-animations.gamer .mascot {
+  filter:
+    drop-shadow(0 0 14px rgba(248, 113, 113, 0.8))
+    drop-shadow(0 0 24px rgba(250, 204, 21, 0.38));
+}
+
+.background-animations.gamer .mascot-controller,
+.background-animations.gamer .mascot-dragon {
+  scale: 1.08;
+}
+
+.background-animations.gamer .mascot-orb,
+.background-animations.gamer .mascot-cart {
+  scale: 1.05;
+}
+
+.background-animations.discreto .mascot {
+  filter:
+    drop-shadow(0 0 10px rgba(248, 113, 113, 0.55))
+    drop-shadow(0 0 18px rgba(34, 197, 94, 0.16));
+}
+
+@media (max-width: 680px) {
+  .background-animations {
+    display: none !important;
   }
 }
