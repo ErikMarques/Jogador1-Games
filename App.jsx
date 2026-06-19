@@ -25,13 +25,167 @@ import {
   X,
 } from "lucide-react";
 
-const APP_VERSION = "5.0";
+const APP_VERSION = "5.1.2";
 const STORAGE_BUCKET = "produto-imagens";
 const MASCOT_BUCKET = "mascotes";
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 const supabase = supabaseUrl && supabaseKey ? createClient(supabaseUrl, supabaseKey) : null;
+
+const NATIVE_MASCOTS = [
+  { id: "native-runner", nome: "Pixel Runner", tipo: "saltador", native: "runner", tamanho: "medio", frequencia: "normal", status: "A", origem: "Nativo" },
+  { id: "native-orb", nome: "Orb Elétrica", tipo: "eletrico", native: "orb", tamanho: "pequeno", frequencia: "normal", status: "A", origem: "Nativo" },
+  { id: "native-dragon", nome: "Drako", tipo: "dragao", native: "dragon", tamanho: "grande", frequencia: "normal", status: "A", origem: "Nativo" },
+  { id: "native-cart", nome: "Cartucho Retrô", tipo: "quicante", native: "cart", tamanho: "pequeno", frequencia: "normal", status: "A", origem: "Nativo" },
+  { id: "native-coin", nome: "Moeda Gamer", tipo: "quicante", native: "coin", tamanho: "pequeno", frequencia: "baixa", status: "A", origem: "Nativo" },
+  { id: "native-star", nome: "Estrela Pixel", tipo: "voador", native: "star", tamanho: "pequeno", frequencia: "baixa", status: "A", origem: "Nativo" },
+];
+
+const emptyMascotForm = {
+  nome: "",
+  tipo: "saltador",
+  tamanho: "medio",
+  frequencia: "normal",
+  status: "A",
+  file: null,
+  preview: "",
+  native: "",
+  removerFundo: true,
+  toleranciaFundo: "media",
+};
+
+function getStoredNativeMascots() {
+  try {
+    const saved = JSON.parse(localStorage.getItem("j1_native_mascots") || "{}");
+    return NATIVE_MASCOTS.map((m) => ({ ...m, ...(saved[m.id] || {}) }));
+  } catch {
+    return NATIVE_MASCOTS;
+  }
+}
+
+function saveStoredNativeMascots(mascots) {
+  try {
+    const compact = {};
+    mascots.forEach((m) => {
+      compact[m.id] = {
+        nome: m.nome,
+        tipo: m.tipo,
+        tamanho: m.tamanho,
+        frequencia: m.frequencia,
+        status: m.status,
+        native: m.native,
+        origem: "Nativo",
+      };
+    });
+    localStorage.setItem("j1_native_mascots", JSON.stringify(compact));
+  } catch {}
+}
+
+function backgroundTolerance(level) {
+  if (level === "baixa") return 18;
+  if (level === "alta") return 70;
+  return 42;
+}
+
+function isLightBackgroundPixel(data, index, tolerance) {
+  const r = data[index];
+  const g = data[index + 1];
+  const b = data[index + 2];
+  const a = data[index + 3];
+
+  if (a < 20) return false;
+
+  const brightness = (r + g + b) / 3;
+  const spread = Math.max(r, g, b) - Math.min(r, g, b);
+
+  return brightness >= 255 - tolerance && spread <= tolerance * 1.35;
+}
+
+async function removeWhiteBackgroundFromMascot(file, toleranceLevel = "media") {
+  if (!file || !file.type?.startsWith("image/")) return file;
+
+  const tolerance = backgroundTolerance(toleranceLevel);
+  const imageUrl = URL.createObjectURL(file);
+
+  try {
+    const image = await new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => resolve(img);
+      img.onerror = reject;
+      img.src = imageUrl;
+    });
+
+    const canvas = document.createElement("canvas");
+    const width = image.naturalWidth || image.width;
+    const height = image.naturalHeight || image.height;
+
+    canvas.width = width;
+    canvas.height = height;
+
+    const ctx = canvas.getContext("2d", { willReadFrequently: true });
+    ctx.drawImage(image, 0, 0, width, height);
+
+    const imageData = ctx.getImageData(0, 0, width, height);
+    const { data } = imageData;
+    const visited = new Uint8Array(width * height);
+    const queue = [];
+
+    function enqueue(x, y) {
+      if (x < 0 || y < 0 || x >= width || y >= height) return;
+      const p = y * width + x;
+      if (visited[p]) return;
+
+      const i = p * 4;
+      if (!isLightBackgroundPixel(data, i, tolerance)) return;
+
+      visited[p] = 1;
+      queue.push(p);
+    }
+
+    for (let x = 0; x < width; x++) {
+      enqueue(x, 0);
+      enqueue(x, height - 1);
+    }
+
+    for (let y = 0; y < height; y++) {
+      enqueue(0, y);
+      enqueue(width - 1, y);
+    }
+
+    let cursor = 0;
+
+    while (cursor < queue.length) {
+      const p = queue[cursor++];
+      const x = p % width;
+      const y = Math.floor(p / width);
+
+      enqueue(x + 1, y);
+      enqueue(x - 1, y);
+      enqueue(x, y + 1);
+      enqueue(x, y - 1);
+    }
+
+    for (let p = 0; p < visited.length; p++) {
+      if (!visited[p]) continue;
+      const i = p * 4;
+      data[i + 3] = 0;
+    }
+
+    ctx.putImageData(imageData, 0, 0);
+
+    const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
+    if (!blob) return file;
+
+    const cleanName = file.name.replace(/\.(png|webp|jpg|jpeg)$/i, "");
+    return new File([blob], `${cleanName}-sem-fundo.png`, { type: "image/png" });
+  } catch {
+    return file;
+  } finally {
+    URL.revokeObjectURL(imageUrl);
+  }
+}
+
 
 const emptyProduct = {
   nome: "",
@@ -165,8 +319,10 @@ export default function App() {
   const [authError, setAuthError] = useState("");
 
   const [extraCost, setExtraCost] = useState({ descricao: "", valor: "", data: "", estoqueAtual: "", estoqueMinimo: "" });
+  const [nativeMascots, setNativeMascots] = useState(() => getStoredNativeMascots());
   const [customMascots, setCustomMascots] = useState([]);
-  const [mascotForm, setMascotForm] = useState({ nome: "", tipo: "saltador", tamanho: "medio", frequencia: "normal", file: null, preview: "" });
+  const [mascotForm, setMascotForm] = useState(emptyMascotForm);
+  const [editingMascotId, setEditingMascotId] = useState(null);
   const [mascotUploading, setMascotUploading] = useState(false);
   const [animationMode, setAnimationMode] = useState(() => localStorage.getItem("j1_animation_mode") || "discreto");
   const [seenAlertKeys, setSeenAlertKeys] = useState(() => {
@@ -176,6 +332,11 @@ export default function App() {
   const [extraCosts, setExtraCosts] = useState([]);
 
   const permissions = permissionsByRole[profile?.perfil || "visualizacao"] || permissionsByRole.visualizacao;
+  const allMascots = useMemo(() => [...nativeMascots, ...customMascots], [nativeMascots, customMascots]);
+
+  useEffect(() => {
+    saveStoredNativeMascots(nativeMascots);
+  }, [nativeMascots]);
 
   useEffect(() => {
     if (!supabase) {
@@ -258,6 +419,7 @@ export default function App() {
       tamanho: m.tamanho || "medio",
       frequencia: m.frequencia || "normal",
       status: m.status || "A",
+      origem: "Importado",
     })));
   }
 
@@ -279,12 +441,83 @@ export default function App() {
     return data.publicUrl;
   }
 
+  function resetMascotForm() {
+    setMascotForm(emptyMascotForm);
+    setEditingMascotId(null);
+  }
+
+  function editMascot(mascot) {
+    setEditingMascotId(mascot.id);
+    setMascotForm({
+      nome: mascot.nome || "",
+      tipo: mascot.tipo || "saltador",
+      tamanho: mascot.tamanho || "medio",
+      frequencia: mascot.frequencia || "normal",
+      status: mascot.status || "A",
+      file: null,
+      preview: mascot.imagemUrl || "",
+      native: mascot.native || "",
+      removerFundo: true,
+      toleranciaFundo: "media",
+    });
+  }
+
   async function addMascot() {
     if (!permissions.canEdit && !permissions.canUsers) return alert("Seu perfil não permite cadastrar mascotes.");
-    if (!mascotForm.nome || !mascotForm.file) return alert("Informe o nome e selecione um PNG/WebP.");
+    if (!mascotForm.nome) return alert("Informe o nome do mascote.");
 
     try {
       setMascotUploading(true);
+
+      if (editingMascotId?.startsWith("native-")) {
+        setNativeMascots((prev) => prev.map((m) => m.id === editingMascotId ? {
+          ...m,
+          nome: mascotForm.nome,
+          tipo: mascotForm.tipo,
+          tamanho: mascotForm.tamanho,
+          frequencia: mascotForm.frequencia,
+          status: mascotForm.status || "A",
+        } : m));
+
+        resetMascotForm();
+        return;
+      }
+
+      if (editingMascotId) {
+        const current = customMascots.find((m) => m.id === editingMascotId);
+        if (!current) throw new Error("Mascote não encontrado.");
+
+        const imagemUrl = mascotForm.file ? await uploadMascotFile(mascotForm.file) : current.imagemUrl;
+
+        const row = {
+          nome: mascotForm.nome,
+          imagem_url: imagemUrl,
+          tipo_movimento: mascotForm.tipo,
+          tamanho: mascotForm.tamanho,
+          frequencia: mascotForm.frequencia,
+          status: mascotForm.status || "A",
+        };
+
+        const { data, error } = await supabase.from("mascotes").update(row).eq("id", editingMascotId).select().single();
+        if (error) throw error;
+
+        setCustomMascots((prev) => prev.map((m) => m.id === editingMascotId ? {
+          id: data.id,
+          nome: data.nome,
+          imagemUrl: data.imagem_url,
+          tipo: data.tipo_movimento,
+          tamanho: data.tamanho,
+          frequencia: data.frequencia,
+          status: data.status,
+          origem: "Importado",
+        } : m));
+
+        resetMascotForm();
+        return;
+      }
+
+      if (!mascotForm.file) return alert("Selecione um PNG/WebP.");
+
       const imagemUrl = await uploadMascotFile(mascotForm.file);
 
       const row = {
@@ -307,17 +540,26 @@ export default function App() {
         tamanho: data.tamanho,
         frequencia: data.frequencia,
         status: data.status,
+        origem: "Importado",
       }, ...prev]);
 
-      setMascotForm({ nome: "", tipo: "saltador", tamanho: "medio", frequencia: "normal", file: null, preview: "" });
+      resetMascotForm();
     } catch (error) {
-      alert(`Erro ao cadastrar mascote: ${error.message}`);
+      alert(`Erro ao salvar mascote: ${error.message}`);
     } finally {
       setMascotUploading(false);
     }
   }
 
   async function toggleMascotStatus(id) {
+    const native = nativeMascots.find((m) => m.id === id);
+
+    if (native) {
+      const nextStatus = native.status === "A" ? "X" : "A";
+      setNativeMascots((prev) => prev.map((m) => m.id === id ? { ...m, status: nextStatus } : m));
+      return;
+    }
+
     const mascot = customMascots.find((m) => m.id === id);
     if (!mascot) return;
 
@@ -332,7 +574,16 @@ export default function App() {
   }
 
   async function removeMascot(id) {
-    const confirmDelete = window.confirm("Deseja remover este mascote?");
+    const native = nativeMascots.find((m) => m.id === id);
+
+    if (native) {
+      const confirmRemove = window.confirm("Deseja remover este mascote nativo da animação? Ele ficará inativo e poderá ser reativado depois.");
+      if (!confirmRemove) return;
+      setNativeMascots((prev) => prev.map((m) => m.id === id ? { ...m, status: "X" } : m));
+      return;
+    }
+
+    const confirmDelete = window.confirm("Deseja remover este mascote importado?");
     if (!confirmDelete) return;
 
     if (supabase) {
@@ -943,11 +1194,18 @@ const costDistribution = [
                   <td>{currency(calc.custoFinal)}</td>
                   <td className="green strong">{currency(calc.lucroReal)}</td>
                   <td>
-                    {permissions.canSell && (
-                      <button className="icon-btn danger" title="Cancelar venda" onClick={() => cancelSale(p.id)}>
-                        <X size={18} />
-                      </button>
-                    )}
+                    <div className="sales-actions-cell">
+                      {permissions.canEdit && (
+                        <button className="icon-btn" title="Editar venda" onClick={() => setEditingProduct(p)}>
+                          <Pencil size={17} />
+                        </button>
+                      )}
+                      {permissions.canSell && (
+                        <button className="icon-btn danger" title="Cancelar venda" onClick={() => cancelSale(p.id)}>
+                          <X size={18} />
+                        </button>
+                      )}
+                    </div>
                   </td>
                 </tr>
               );
@@ -1036,13 +1294,16 @@ const costDistribution = [
           </ModuleCard>
 
           <MascotManager
-            mascots={customMascots}
+            mascots={allMascots}
             form={mascotForm}
             setForm={setMascotForm}
             onAdd={addMascot}
+            onEdit={editMascot}
+            onCancelEdit={resetMascotForm}
             onToggle={toggleMascotStatus}
             onRemove={removeMascot}
             uploading={mascotUploading}
+            editingMascotId={editingMascotId}
           />
 
           <ModuleCard title="Produtos inativos" subtitle="Produtos com status de registro X.">
@@ -1081,7 +1342,7 @@ const costDistribution = [
 
   return (
     <div className="app">
-      <BackgroundAnimations mode={animationMode} mascots={customMascots} />
+      <BackgroundAnimations mode={animationMode} mascots={allMascots} />
       {expandedImage && <div className="image-overlay" onClick={() => setExpandedImage(null)}><img src={expandedImage} alt="Produto ampliado" /></div>}
       {calendarOpen && <CalendarModal events={calendarEvents} onClose={() => setCalendarOpen(false)} />}
       {alertsOpen && <AlertsModal alerts={systemAlerts} unreadKeys={unreadAlerts.map((alert) => alert.key)} onClose={() => setAlertsOpen(false)} onMarkSeen={markAlertAsSeen} onMarkAll={markAllAlertsAsSeen} />}
@@ -1089,7 +1350,7 @@ const costDistribution = [
 
       {newProductOpen && <ProductModal title="Cadastrar novo produto" product={newProduct} setProduct={setNewProduct} onClose={() => setNewProductOpen(false)} onSave={addProduct} saveText="Adicionar ao estoque" importImages={importNewImages} removeImage={(index) => setNewProduct((prev) => ({ ...prev, imagens: prev.imagens.filter((_, i) => i !== index) }))} setExpandedImage={setExpandedImage} extraCosts={extraCosts} />}
 
-      {editingProduct && <ProductModal title="Editar produto" product={editingProduct} setProduct={setEditingProduct} onClose={() => setEditingProduct(null)} onSave={saveEdit} onDelete={deleteEditingProduct} saveText="Salvar alterações" importImages={importEditImages} removeImage={(index) => setEditingProduct((prev) => ({ ...prev, imagens: prev.imagens.filter((_, i) => i !== index) }))} setExpandedImage={setExpandedImage} extraCosts={extraCosts} editing />}
+      {editingProduct && <ProductModal title={editingProduct.status === "Vendido" ? "Editar venda concluída" : "Editar produto"} product={editingProduct} setProduct={setEditingProduct} onClose={() => setEditingProduct(null)} onSave={saveEdit} onDelete={deleteEditingProduct} saveText="Salvar alterações" importImages={importEditImages} removeImage={(index) => setEditingProduct((prev) => ({ ...prev, imagens: prev.imagens.filter((_, i) => i !== index) }))} setExpandedImage={setExpandedImage} extraCosts={extraCosts} editing />}
 
       <div className="layout">
         <aside className="sidebar">
@@ -1156,13 +1417,13 @@ function ProductModal({ title, product, setProduct, onClose, onSave, onDelete, s
   return (
     <div className="modal-backdrop">
       <div className="product-modal">
-        <div className="modal-header"><div><h2>{title}</h2><p>Preencha a compra, selecione custos extras e importe até 6 imagens.</p></div><button onClick={onClose}><X size={18} /> Fechar</button></div>
+        <div className="modal-header"><div><h2>{title}</h2><p>{product.status === "Vendido" ? "Ajuste venda real, data, custos e informações do produto vendido." : "Preencha a compra, selecione custos extras e importe até 6 imagens."}</p></div><button onClick={onClose}><X size={18} /> Fechar</button></div>
         <div className="modal-grid">
           <div className="modal-left">
             <FormSection title="Identificação"><div className="form-grid"><input value={product.nome} onChange={(e) => setProduct({ ...product, nome: e.target.value })} placeholder="Nome do produto" /><input value={product.sku} onChange={(e) => setProduct({ ...product, sku: e.target.value })} placeholder="SKU / Código interno" /></div></FormSection>
             <FormSection title="Estoque"><div className="form-grid"><input type="number" value={product.quantidade} onChange={(e) => setProduct({ ...product, quantidade: e.target.value })} placeholder="Quantidade" /><input type="number" value={product.estoqueMinimo} onChange={(e) => setProduct({ ...product, estoqueMinimo: e.target.value })} placeholder="Estoque mínimo" /></div></FormSection>
             <FormSection title="Custo do produto"><div className="form-grid single"><input type="number" value={product.compra} onChange={(e) => setProduct({ ...product, compra: e.target.value })} placeholder="Preço de compra" /></div><ExtraCostSelector extraCosts={extraCosts} selected={product.custosExtras || []} toggleExtraCost={toggleExtraCost} /></FormSection>
-            <FormSection title="Venda"><div className="form-grid"><input type="number" value={product.vendaEsperada} onChange={(e) => setProduct({ ...product, vendaEsperada: e.target.value })} placeholder="Valor esperado de venda" />{editing && <input type="number" value={product.vendaReal} onChange={(e) => setProduct({ ...product, vendaReal: e.target.value })} placeholder="Venda real" />}</div></FormSection>
+            <FormSection title="Venda"><div className="form-grid"><input type="number" value={product.vendaEsperada} onChange={(e) => setProduct({ ...product, vendaEsperada: e.target.value })} placeholder="Valor esperado de venda" />{editing && <input type="number" value={product.vendaReal} onChange={(e) => setProduct({ ...product, vendaReal: e.target.value })} placeholder="Venda real" />}{editing && product.status === "Vendido" && <input type="date" value={dateKey(product.dataVenda || product.dataCompra)} onChange={(e) => setProduct({ ...product, dataVenda: e.target.value })} title="Data da venda" />}</div></FormSection>
           </div>
           <div className="modal-right"><FormSection title="Imagens"><input className="file-input" type="file" accept="image/*" multiple onChange={importImages} /><p className="muted">Você pode importar em etapas, até completar 6 imagens.</p><ImagesGrid images={product.imagens} removeImage={removeImage} setExpandedImage={setExpandedImage} /></FormSection><div className="profit-box"><p>Custo final estimado</p><strong>{currency(cost)}</strong><p>Lucro esperado</p><strong className="green">{currency(profit)}</strong></div><div className="modal-action-buttons">{editing && onDelete && <button onClick={onDelete} className="delete-product-button"><Trash2 size={18} /> Excluir produto</button>}<button onClick={onSave} className="full-button"><Plus size={18} /> {saveText}</button></div></div>
         </div>
@@ -1285,27 +1546,46 @@ function AlertsModal({ alerts, unreadKeys, onClose, onMarkSeen, onMarkAll }) {
 }
 
 
-function MascotManager({ mascots, form, setForm, onAdd, onToggle, onRemove, uploading }) {
-  function handleFile(event) {
+function MascotManager({ mascots, form, setForm, onAdd, onEdit, onCancelEdit, onToggle, onRemove, uploading, editingMascotId }) {
+  async function handleFile(event) {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    setForm({
-      ...form,
-      file,
-      preview: URL.createObjectURL(file),
-      nome: form.nome || file.name.replace(/\.(png|webp)$/i, ""),
-    });
+    try {
+      const processedFile = form.removerFundo ? await removeWhiteBackgroundFromMascot(file, form.toleranciaFundo) : file;
+
+      setForm({
+        ...form,
+        file: processedFile,
+        preview: URL.createObjectURL(processedFile),
+        native: "",
+        nome: form.nome || file.name.replace(/\.(png|webp)$/i, ""),
+      });
+    } catch {
+      setForm({
+        ...form,
+        file,
+        preview: URL.createObjectURL(file),
+        native: "",
+        nome: form.nome || file.name.replace(/\.(png|webp)$/i, ""),
+      });
+    }
 
     event.target.value = "";
   }
 
   return (
-    <ModuleCard title="Mascotes personalizados" subtitle="Importe PNG/WebP e escolha como ele se comporta no Mundo dos Mascotes.">
+    <ModuleCard title="Mascotes personalizados" subtitle="Gerencie os mascotes nativos e importados usados no Mundo dos Mascotes.">
       <div className="mascot-upload-grid">
         <div className="mascot-preview-box">
-          {form.preview ? <img src={form.preview} alt="Preview do mascote" /> : <Gamepad2 size={44} />}
-          <small>Use PNG/WebP com fundo transparente para melhor resultado.</small>
+          {form.preview ? (
+            <img src={form.preview} alt="Preview do mascote" />
+          ) : form.native ? (
+            <span className="native-preview"><NativeMascot type={form.native} /></span>
+          ) : (
+            <Gamepad2 size={44} />
+          )}
+          <small>Use PNG/WebP. Fundo branco é removido automaticamente quando a opção estiver ativa.</small>
         </div>
 
         <div className="mascot-form-grid">
@@ -1327,27 +1607,48 @@ function MascotManager({ mascots, form, setForm, onAdd, onToggle, onRemove, uplo
             <option value="normal">Frequência normal</option>
             <option value="alta">Frequência alta</option>
           </select>
+          <select value={form.status || "A"} onChange={(e) => setForm({ ...form, status: e.target.value })}>
+            <option value="A">Ativo</option>
+            <option value="X">Inativo</option>
+          </select>
+          <label className="mascot-check">
+            <input type="checkbox" checked={form.removerFundo !== false} onChange={(e) => setForm({ ...form, removerFundo: e.target.checked })} />
+            Remover fundo branco
+          </label>
+          <select value={form.toleranciaFundo || "media"} onChange={(e) => setForm({ ...form, toleranciaFundo: e.target.value })} disabled={form.removerFundo === false}>
+            <option value="baixa">Tolerância baixa</option>
+            <option value="media">Tolerância média</option>
+            <option value="alta">Tolerância alta</option>
+          </select>
           <label className="mascot-file-button">
-            Escolher PNG/WebP
+            {editingMascotId ? "Trocar PNG/WebP" : "Escolher PNG/WebP"}
             <input type="file" accept="image/png,image/webp" onChange={handleFile} />
           </label>
-          <button onClick={onAdd} disabled={uploading}>{uploading ? "Enviando..." : "+ Adicionar mascote"}</button>
+          <button onClick={onAdd} disabled={uploading}>{uploading ? "Salvando..." : editingMascotId ? "Salvar mascote" : "+ Adicionar mascote"}</button>
+          {editingMascotId && <button className="secondary-btn" onClick={onCancelEdit} disabled={uploading}>Cancelar edição</button>}
         </div>
       </div>
 
-      <SimpleTable headers={["Mascote", "Tipo", "Tamanho", "Status", "Ações"]}>
+      <div className="mascot-list-title">
+        <h4>Mascotes cadastrados</h4>
+        <span>{mascots.length} no total</span>
+      </div>
+
+      <SimpleTable headers={["Mascote", "Origem", "Tipo", "Tamanho", "Status", "Ações"]}>
         {mascots.map((m) => (
           <tr key={m.id}>
             <td>
               <div className="mascot-table-cell">
-                <img src={m.imagemUrl} alt={m.nome} />
+                {m.imagemUrl ? <img src={m.imagemUrl} alt={m.nome} /> : <span className="native-table-preview"><NativeMascot type={m.native} /></span>}
                 <strong>{m.nome}</strong>
               </div>
             </td>
+            <td><span className={m.origem === "Nativo" ? "source-pill native" : "source-pill imported"}>{m.origem || "Importado"}</span></td>
             <td>{m.tipo}</td>
             <td>{m.tamanho}</td>
             <td><Status status={m.status === "A" ? "Ativo" : "Inativo"} /></td>
             <td className="right mascot-actions">
+              <button className="icon-btn" title="Editar mascote" onClick={() => onEdit(m)}><Pencil size={17} /></button>
               <button onClick={() => onToggle(m.id)}>{m.status === "A" ? "Inativar" : "Ativar"}</button>
               <button className="icon-btn danger" onClick={() => onRemove(m.id)}><Trash2 size={18} /></button>
             </td>
@@ -1364,8 +1665,8 @@ function BackgroundAnimations({ mode, mascots = [] }) {
   const lastRef = useRef(0);
   const platformsRef = useRef([]);
 
-  const activeCustomMascots = useMemo(() => {
-    return (mascots || []).filter((m) => m.status === "A" && m.imagemUrl);
+  const activeMascots = useMemo(() => {
+    return (mascots || []).filter((m) => m.status === "A" && (m.imagemUrl || m.native));
   }, [mascots]);
 
   useEffect(() => {
@@ -1378,26 +1679,20 @@ function BackgroundAnimations({ mode, mascots = [] }) {
     const height = window.innerHeight || 760;
     const isGamer = mode === "gamer";
 
-    const native = [
-      { id: "native-runner", nome: "Pixel Runner", tipo: "saltador", native: "runner", tamanho: "medio" },
-      { id: "native-orb", nome: "Orb Elétrica", tipo: "eletrico", native: "orb", tamanho: "pequeno" },
-      { id: "native-dragon", nome: "Drako", tipo: "dragao", native: "dragon", tamanho: "grande" },
-      { id: "native-cart", nome: "Cartucho", tipo: "quicante", native: "cart", tamanho: "pequeno" },
-    ];
-
-    const custom = activeCustomMascots.map((m) => ({
-      id: `custom-${m.id}`,
+    const baseList = activeMascots.map((m) => ({
+      id: m.native ? m.id : `custom-${m.id}`,
       nome: m.nome,
       tipo: m.tipo || "saltador",
-      src: m.imagemUrl,
+      native: m.native || "",
+      src: m.imagemUrl || "",
       tamanho: m.tamanho || "medio",
-      custom: true,
+      frequencia: m.frequencia || "normal",
+      custom: !m.native,
     }));
 
-    const baseList = isGamer ? [...native, ...custom] : [...native.slice(0, 3), ...custom.slice(0, 2)];
-
-    setSprites(baseList.map((m, index) => createMascotSprite(m, index, width, height)));
-  }, [mode, activeCustomMascots]);
+    const listToRender = isGamer ? baseList : baseList.slice(0, Math.min(baseList.length, 6));
+    setSprites(listToRender.map((m, index) => createMascotSprite(m, index, width, height, mode)));
+  }, [mode, activeMascots]);
 
   useEffect(() => {
     if (mode === "desativado" || !sprites.length) return;
@@ -1408,6 +1703,7 @@ function BackgroundAnimations({ mode, mascots = [] }) {
         ".topbar",
         ".stat-card",
         ".dashboard-sales-management .module-card",
+        ".module-card",
         ".version-footer",
       ];
 
@@ -1417,21 +1713,20 @@ function BackgroundAnimations({ mode, mascots = [] }) {
           const r = element.getBoundingClientRect();
           return { x: r.left, y: r.top, w: r.width, h: r.height };
         })
-        .filter((r) => r.w > 40 && r.h > 20);
+        .filter((r) => r.w > 60 && r.h > 26);
     }
 
     refreshPlatforms();
     window.addEventListener("resize", refreshPlatforms);
-    const platformInterval = window.setInterval(refreshPlatforms, 1200);
+    const platformInterval = window.setInterval(refreshPlatforms, 900);
 
     function tick(time) {
       const width = window.innerWidth || 1200;
       const height = window.innerHeight || 760;
-      const dt = Math.min(34, time - (lastRef.current || time));
+      const dt = Math.min(2.4, Math.max(0.35, (time - (lastRef.current || time)) / 16.67));
       lastRef.current = time;
 
-      setSprites((prev) => prev.map((sprite) => stepMascotSprite(sprite, dt / 16.67, width, height, platformsRef.current, mode)));
-
+      setSprites((prev) => prev.map((sprite) => stepMascotSprite(sprite, dt, width, height, platformsRef.current, mode)));
       frameRef.current = requestAnimationFrame(tick);
     }
 
@@ -1451,7 +1746,7 @@ function BackgroundAnimations({ mode, mascots = [] }) {
       {sprites.map((sprite) => (
         <div
           key={sprite.id}
-          className={`world-mascot ${sprite.native ? `native-${sprite.native}` : "custom-mascot"} ${sprite.tipo} ${sprite.facing < 0 ? "flip" : ""}`}
+          className={`world-mascot ${sprite.native ? `native-${sprite.native}` : "custom-mascot"} motion-${sprite.tipo} ${sprite.facing < 0 ? "flip" : ""}`}
           style={{
             transform: `translate3d(${sprite.x}px, ${sprite.y}px, 0)`,
             width: sprite.size,
@@ -1460,137 +1755,188 @@ function BackgroundAnimations({ mode, mascots = [] }) {
           }}
         >
           {sprite.src ? (
-            <img src={sprite.src} alt="" />
+            <span className="custom-2-5d-shell">
+              <span className="custom-2-5d-ground-shadow" />
+              <span className="custom-2-5d-depth depth-back" />
+              <img src={sprite.src} alt="" />
+              <span className="custom-2-5d-depth depth-front" />
+              <span className="custom-2-5d-highlight" />
+              <span className="custom-2-5d-glow" />
+            </span>
           ) : (
             <NativeMascot type={sprite.native} />
           )}
           {sprite.fireTimer > 0 && <span className="mascot-fire-breath" />}
           {sprite.sparkTimer > 0 && <span className="mascot-spark-field" />}
+          {sprite.jumpDust > 0 && <span className="mascot-dust" />}
         </div>
       ))}
     </div>
   );
 }
 
-function createMascotSprite(mascot, index, width, height) {
-  const sizeMap = { pequeno: 38, medio: 54, grande: 76 };
+function createMascotSprite(mascot, index, width, height, mode = "discreto") {
+  const sizeMap = { pequeno: 42, medio: 60, grande: 82 };
   const size = sizeMap[mascot.tamanho] || sizeMap.medio;
   const type = mascot.tipo || "saltador";
   const fromLeft = index % 2 === 0;
+  const freqBoost = mascot.frequencia === "alta" ? 1.32 : mascot.frequencia === "baixa" ? 0.72 : 1;
+  const speedBase = (mode === "gamer" ? 2.15 : 1.55) * freqBoost;
+  const flyer = type === "voador" || type === "dragao" || type === "eletrico";
 
   return {
     ...mascot,
     tipo: type,
     size,
-    x: fromLeft ? -size - (index * 36) : width + (index * 42),
-    y: Math.max(90, Math.min(height - 160, 130 + (index * 82) % Math.max(180, height - 220))),
-    vx: fromLeft ? 1.5 + (index % 3) * 0.32 : -1.5 - (index % 3) * 0.28,
-    vy: type === "voador" || type === "dragao" || type === "eletrico" ? 0 : -1,
+    x: fromLeft ? -size - 40 - (index * 24) : width + 40 + (index * 24),
+    y: flyer ? Math.max(90, Math.min(height - 180, 100 + (index * 76) % Math.max(180, height - 260))) : Math.max(120, height - 140 - size - ((index % 3) * 36)),
+    vx: fromLeft ? speedBase : -speedBase,
+    vy: flyer ? (index % 2 ? 0.35 : -0.25) : -4.5,
     grounded: false,
     facing: fromLeft ? 1 : -1,
-    opacity: 0.92,
-    jumpCooldown: 30 + index * 14,
+    opacity: 0.96,
+    jumpCooldown: 35 + index * 16,
+    avoidTimer: 0,
     fireTimer: 0,
     sparkTimer: 0,
-    life: 0,
+    jumpDust: 0,
+    life: Math.random() * 120,
   };
 }
 
 function resetMascot(sprite, width, height) {
   const fromLeft = Math.random() > 0.5;
+  const flyer = sprite.tipo === "voador" || sprite.tipo === "dragao" || sprite.tipo === "eletrico";
   return {
     ...sprite,
-    x: fromLeft ? -sprite.size - 30 : width + 30,
-    y: Math.max(90, Math.min(height - 120, 120 + Math.random() * Math.max(120, height - 260))),
-    vx: fromLeft ? Math.abs(sprite.vx || 1.6) : -Math.abs(sprite.vx || 1.6),
-    vy: sprite.tipo === "saltador" || sprite.tipo === "quicante" ? -4 : 0,
+    x: fromLeft ? -sprite.size - 60 : width + 60,
+    y: flyer ? Math.max(90, Math.min(height - 180, 120 + Math.random() * Math.max(120, height - 280))) : height - 130 - sprite.size,
+    vx: fromLeft ? Math.abs(sprite.vx || 1.7) : -Math.abs(sprite.vx || 1.7),
+    vy: flyer ? 0 : -5.5,
     facing: fromLeft ? 1 : -1,
     fireTimer: 0,
     sparkTimer: 0,
+    jumpDust: 0,
+    avoidTimer: 0,
     life: 0,
   };
 }
 
+function intersectsSprite(sprite, p) {
+  return sprite.x + sprite.size > p.x && sprite.x < p.x + p.w && sprite.y + sprite.size > p.y && sprite.y < p.y + p.h;
+}
+
 function stepMascotSprite(sprite, dt, width, height, platforms, mode) {
   let next = { ...sprite };
-  const speedMultiplier = mode === "gamer" ? 1.22 : 0.9;
-  const gravity = next.tipo === "voador" || next.tipo === "dragao" || next.tipo === "eletrico" ? 0.02 : 0.34;
+  const isFlyer = next.tipo === "voador" || next.tipo === "dragao" || next.tipo === "eletrico";
+  const isBouncer = next.tipo === "quicante";
   const floor = height - 92 - next.size;
+  const speedMultiplier = mode === "gamer" ? 1.12 : 0.94;
+  const gravity = isFlyer ? 0.018 : 0.36;
 
   next.life += dt;
-  next.x += next.vx * speedMultiplier * dt;
-  next.y += next.vy * dt;
-  next.vy += gravity * dt;
-  next.jumpCooldown -= dt;
+  next.avoidTimer = Math.max(0, next.avoidTimer - dt);
+  next.jumpCooldown = Math.max(0, next.jumpCooldown - dt);
   next.fireTimer = Math.max(0, next.fireTimer - dt);
   next.sparkTimer = Math.max(0, next.sparkTimer - dt);
+  next.jumpDust = Math.max(0, next.jumpDust - dt);
   next.facing = next.vx >= 0 ? 1 : -1;
 
-  if (next.tipo === "voador" || next.tipo === "dragao" || next.tipo === "eletrico") {
-    next.y += Math.sin((next.life + next.size) / 18) * (next.tipo === "eletrico" ? 1.6 : 0.8);
+  if (isFlyer) {
+    next.x += next.vx * speedMultiplier * dt;
+    next.y += (next.vy + Math.sin((next.life + next.size) / 18) * (next.tipo === "eletrico" ? 1.8 : 1.0)) * dt;
+    next.vy += Math.sin(next.life / 24) * 0.025;
 
     for (const p of platforms) {
-      const nearX = next.x + next.size > p.x - 30 && next.x < p.x + p.w + 30;
-      const nearY = next.y + next.size > p.y - 25 && next.y < p.y + p.h + 25;
-
-      if (nearX && nearY) {
-        if (next.y + next.size / 2 < p.y + p.h / 2) next.y = p.y - next.size - 10;
-        else next.y = p.y + p.h + 10;
-        next.vy *= -0.25;
+      if (!intersectsSprite(next, p)) continue;
+      const spriteCenterY = next.y + next.size / 2;
+      const platformCenterY = p.y + p.h / 2;
+      next.vy += spriteCenterY < platformCenterY ? -0.85 : 0.85;
+      next.y += spriteCenterY < platformCenterY ? -12 : 12;
+      if (next.avoidTimer <= 0 && Math.random() > 0.65) {
+        next.vx = -next.vx;
+        next.avoidTimer = 28;
       }
     }
 
-    if (next.tipo === "dragao" && next.life % 160 < 2) next.fireTimer = 46;
-    if (next.tipo === "eletrico" && next.life % 110 < 2) next.sparkTimer = 34;
+    if (next.y < 64) {
+      next.y = 64;
+      next.vy = Math.abs(next.vy) + 0.35;
+    }
+
+    if (next.y > floor) {
+      next.y = floor;
+      next.vy = -Math.abs(next.vy || 0.8);
+    }
+
+    if (next.tipo === "dragao" && next.life % 115 < 2.4) next.fireTimer = 58;
+    if (next.tipo === "eletrico" && next.life % 76 < 2.2) next.sparkTimer = 38;
   } else {
+    const prev = { x: next.x, y: next.y };
+    next.x += next.vx * speedMultiplier * dt;
+    next.y += next.vy * dt;
+    next.vy += gravity * dt;
     next.grounded = false;
 
     for (const p of platforms) {
-      const horizontal = next.x + next.size > p.x && next.x < p.x + p.w;
-      const vertical = next.y + next.size > p.y && next.y < p.y + p.h;
+      if (!intersectsSprite(next, p)) continue;
 
-      if (horizontal && vertical) {
-        const prevBottom = sprite.y + sprite.size;
+      const prevBottom = prev.y + next.size;
+      const nextBottom = next.y + next.size;
+      const horizontalOverlap = next.x + next.size > p.x + 6 && next.x < p.x + p.w - 6;
 
-        if (prevBottom <= p.y + 10 && next.vy >= 0) {
-          next.y = p.y - next.size - 1;
-          next.vy = 0;
-          next.grounded = true;
+      if (horizontalOverlap && prevBottom <= p.y + 12 && nextBottom >= p.y && next.vy >= 0) {
+        next.y = p.y - next.size - 1;
+        next.vy = 0;
+        next.grounded = true;
 
-          if ((next.tipo === "saltador" || next.tipo === "quicante") && next.jumpCooldown <= 0) {
-            next.vy = next.tipo === "quicante" ? -8.5 : -6.8;
-            next.jumpCooldown = next.tipo === "quicante" ? 55 : 85;
-          }
-        } else {
-          next.vx = -next.vx;
-          next.x += next.vx * 8;
-
-          if (next.tipo === "saltador") {
-            next.vy = -7.4;
-            next.y -= 8;
-          }
+        if (next.jumpCooldown <= 0) {
+          next.vy = isBouncer ? -9.2 : -7.2;
+          next.jumpCooldown = isBouncer ? 44 : 82;
+          next.jumpDust = 15;
         }
+
+        continue;
+      }
+
+      if (next.avoidTimer <= 0) {
+        const fromLeft = prev.x + next.size <= p.x + 8;
+        const fromRight = prev.x >= p.x + p.w - 8;
+
+        if (fromLeft) next.x = p.x - next.size - 8;
+        else if (fromRight) next.x = p.x + p.w + 8;
+        else next.y = p.y - next.size - 8;
+
+        next.vx = -next.vx;
+        next.vy = isBouncer ? -8.5 : -7.8;
+        next.jumpDust = 18;
+        next.avoidTimer = 22;
       }
     }
 
     if (next.y >= floor) {
       next.y = floor;
-      next.vy = next.tipo === "quicante" ? -8 : 0;
       next.grounded = true;
 
-      if (next.tipo === "saltador" && next.jumpCooldown <= 0) {
-        next.vy = -7.5;
-        next.jumpCooldown = 95;
+      if (isBouncer) {
+        next.vy = -8.4;
+        next.jumpDust = 12;
+      } else if (next.jumpCooldown <= 0) {
+        next.vy = -7.2;
+        next.jumpCooldown = 90;
+        next.jumpDust = 12;
+      } else {
+        next.vy = 0;
       }
+    }
+
+    if (next.y < 52) {
+      next.y = 52;
+      next.vy = Math.abs(next.vy) * 0.6;
     }
   }
 
-  if (next.y < 48) {
-    next.y = 48;
-    next.vy = Math.abs(next.vy) * 0.6;
-  }
-
-  if (next.x > width + 160 || next.x < -180 || next.y > height + 160) {
+  if (next.x > width + 190 || next.x < -220 || next.y > height + 180) {
     next = resetMascot(next, width, height);
   }
 
@@ -1602,6 +1948,8 @@ function NativeMascot({ type }) {
   if (type === "orb") return <><i className="native-orb-core" /><i className="native-orb-bolt one" /><i className="native-orb-bolt two" /></>;
   if (type === "dragon") return <><i className="native-dragon-wing" /><i className="native-dragon-body" /><i className="native-dragon-eye" /></>;
   if (type === "cart") return <><i className="native-cart-body" /><i className="native-cart-label" /></>;
+  if (type === "coin") return <><i className="native-coin-body" /><i className="native-coin-shine" /></>;
+  if (type === "star") return <><i className="native-star-body" /><i className="native-star-shine" /></>;
   return <i className="native-runner-body" />;
 }
 
@@ -1748,6 +2096,15 @@ function VersionModal({ onClose }) {
           <li>Mascotes nativos com comportamento próprio: saltador, elétrico, quicante e dragão com fogo.</li>
           <li>Upload de mascotes personalizados em Manutenção.</li>
           <li>PNG/WebP importado passa a ser usado no Mundo dos Mascotes.</li>
+          <li>Mascotes personalizados agora entram na física do mundo, com movimento conforme o tipo escolhido.</li>
+          <li>Corrigido mascote importado parado sobre os cards.</li>
+          <li>Mascotes importados com efeito 2.5D automático.</li>
+          <li>Sombra dinâmica, brilho, profundidade, inclinação e squash/stretch nos PNGs importados.</li>
+          <li>Todos os mascotes nativos agora aparecem em Manutenção para edição/ativação.</li>
+          <li>Adicionado lápis para editar mascotes já cadastrados.</li>
+          <li>Remoção automática de fundo branco no upload de PNG/WebP.</li>
+          <li>Gerenciamento de Vendas ampliado e responsivo.</li>
+          <li>Lápis nas vendas concluídas para editar venda real, data e informações do produto vendido.</li>
           <li>Tipos de movimento: Saltador, Voador, Quicante, Elétrico e Dragão/Fogo.</li>
         </ul>
       </div>
