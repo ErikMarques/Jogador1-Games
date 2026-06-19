@@ -1,4 +1,4 @@
-/* Jogador1 Games - v5.0 */
+/* Jogador1 Games - v5.1.2 */
 * { box-sizing: border-box; }
 html, body, #root { min-height: 100%; }
 body {
@@ -1709,5 +1709,643 @@ tr td:last-child { border-radius: 0 16px 16px 0; }
 
   .mascot-form-grid {
     grid-template-columns: 1fr;
+  }
+}
+
+
+/* Jogador1 Games - v5.0.1 */
+/* Correção do Mundo dos Mascotes: PNG importado agora se movimenta de verdade */
+
+.custom-mascot img {
+  animation: custom-mascot-life .72s infinite alternate ease-in-out;
+  transform-origin: bottom center;
+  border-radius: 10px;
+  background: transparent;
+}
+
+.motion-saltador.custom-mascot img {
+  animation-name: custom-mascot-hop;
+  animation-duration: .54s;
+}
+
+.motion-quicante.custom-mascot img {
+  animation-name: custom-mascot-bounce;
+  animation-duration: .38s;
+}
+
+.motion-voador.custom-mascot img,
+.motion-dragao.custom-mascot img {
+  animation-name: custom-mascot-fly;
+  animation-duration: .62s;
+}
+
+.motion-eletrico.custom-mascot img {
+  animation-name: custom-mascot-electric;
+  animation-duration: .28s;
+}
+
+@keyframes custom-mascot-life {
+  from { transform: translateY(0) rotate(-1deg); }
+  to { transform: translateY(-4px) rotate(2deg); }
+}
+
+@keyframes custom-mascot-hop {
+  from { transform: translateY(0) rotate(-2deg) scale(1); }
+  to { transform: translateY(-8px) rotate(3deg) scale(1.03); }
+}
+
+@keyframes custom-mascot-bounce {
+  from { transform: translateY(3px) scale(1.04, .96) rotate(-3deg); }
+  to { transform: translateY(-9px) scale(.98, 1.04) rotate(4deg); }
+}
+
+@keyframes custom-mascot-fly {
+  from { transform: translateY(0) rotate(-4deg); }
+  to { transform: translateY(-7px) rotate(5deg); }
+}
+
+@keyframes custom-mascot-electric {
+  0% { transform: translate(0, 0) rotate(-2deg); filter: drop-shadow(0 0 8px rgba(250, 204, 21, .7)); }
+  50% { transform: translate(2px, -4px) rotate(3deg); filter: drop-shadow(0 0 18px rgba(250, 204, 21, 1)); }
+  100% { transform: translate(-2px, 2px) rotate(-3deg); filter: drop-shadow(0 0 10px rgba(250, 204, 21, .8)); }
+}
+
+.mascot-dust {
+  position: absolute;
+  left: 16%;
+  right: 16%;
+  bottom: -7px;
+  height: 9px;
+  border-radius: 999px;
+  background: radial-gradient(ellipse, rgba(248, 113, 113, .55), transparent 68%);
+  animation: mascot-dust-fade .32s linear infinite;
+}
+
+@keyframes mascot-dust-fade {
+  from { opacity: .8; transform: scaleX(.65); }
+  to { opacity: 0; transform: scaleX(1.2); }
+}
+
+.world-mascot.motion-dragao .mascot-fire-breath {
+  display: block;
+  width: 70px;
+  height: 24px;
+  right: -58px;
+  background:
+    radial-gradient(circle at 18% 50%, #fef3c7 0 11%, transparent 13%),
+    radial-gradient(circle at 38% 50%, #facc15 0 16%, transparent 18%),
+    linear-gradient(90deg, #ef4444, #f97316, #facc15, transparent);
+  box-shadow:
+    0 0 16px rgba(249, 115, 22, .95),
+    0 0 28px rgba(239, 68, 68, .65);
+}
+
+.world-mascot.flip.motion-dragao .mascot-fire-breath {
+  right: auto;
+  left: -58px;
+}
+
+.mascot-world.gamer .custom-mascot {
+  filter:
+    drop-shadow(0 0 14px rgba(248, 113, 113, .78))
+    drop-shadow(0 0 28px rgba(250, 204, 21, .42));
+}
+
+.mascot-world.discreto .custom-mascot {
+  filter:
+    drop-shadow(0 0 10px rgba(248, 113, 113, .52))
+    drop-shadow(0 0 20px rgba(250, 204, 21, .22));
+}
+
+
+/* Jogador1 Games - v5.1 */
+/* Mascotes importados com efeito 2.5D automático */
+
+.custom-2-5d-shell {
+  position: absolute;
+  inset: -7%;
+  display: block;
+  transform-style: preserve-3d;
+  perspective: 360px;
+  transform-origin: bottom center;
+  animation: mascot-2-5d-idle 1.8s ease-in-out infinite alternate;
+}
+
+.custom-2-5d-shell img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  z-index: 3;
+  transform-origin: bottom center;
+  transform:
+    translateZ(18px)
+    rotateX(5deg)
+    rotateY(-9deg);
+  filter:
+    drop-shadow(0 8px 6px rgba(0, 0, 0, .45))
+    drop-shadow(0 0 14px rgba(248, 113, 113, .28));
+}
+
+.custom-2-5d-ground-shadow {
+  position: absolute;
+  left: 14%;
+  right: 14%;
+  bottom: 0;
+  height: 16%;
+  z-index: 0;
+  border-radius: 50%;
+  background: radial-gradient(ellipse, rgba(0,0,0,.58) 0 18%, rgba(0,0,0,.28) 45%, transparent 72%);
+  transform:
+    translateY(28%)
+    rotateX(68deg)
+    scaleX(1.18);
+  filter: blur(2px);
+}
+
+.custom-2-5d-depth {
+  position: absolute;
+  inset: 2%;
+  z-index: 1;
+  border-radius: 18px;
+  opacity: .34;
+  background: linear-gradient(135deg, rgba(0,0,0,.18), rgba(255,255,255,.08));
+  mask-image: radial-gradient(ellipse at center, #000 30%, transparent 72%);
+  pointer-events: none;
+}
+
+.custom-2-5d-depth.depth-back {
+  transform: translate(5px, 7px) scale(.98);
+  background: linear-gradient(135deg, rgba(127,29,29,.32), rgba(0,0,0,.42));
+  filter: blur(.6px);
+}
+
+.custom-2-5d-depth.depth-front {
+  z-index: 4;
+  inset: 4%;
+  opacity: .28;
+  transform: translateZ(24px);
+  background:
+    radial-gradient(circle at 28% 20%, rgba(255,255,255,.36), transparent 22%),
+    linear-gradient(145deg, rgba(255,255,255,.12), transparent 52%);
+  mix-blend-mode: screen;
+}
+
+.custom-2-5d-highlight {
+  position: absolute;
+  z-index: 5;
+  left: 12%;
+  top: 8%;
+  width: 34%;
+  height: 26%;
+  border-radius: 999px;
+  background: radial-gradient(ellipse, rgba(255,255,255,.28), transparent 68%);
+  transform: rotate(-18deg) translateZ(34px);
+  pointer-events: none;
+  mix-blend-mode: screen;
+}
+
+.custom-2-5d-glow {
+  position: absolute;
+  inset: -12%;
+  z-index: 0;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 50% 60%, rgba(248,113,113,.16), transparent 56%),
+    radial-gradient(circle at 52% 42%, rgba(250,204,21,.10), transparent 48%);
+  filter: blur(10px);
+  opacity: .82;
+  animation: mascot-2-5d-glow 1.4s ease-in-out infinite alternate;
+  pointer-events: none;
+}
+
+.custom-mascot {
+  transform-style: preserve-3d;
+}
+
+.custom-mascot img {
+  background: transparent !important;
+  border-radius: 0;
+}
+
+/* O tipo de movimento agora influencia a "personalidade" 2.5D */
+.motion-saltador .custom-2-5d-shell {
+  animation: mascot-2-5d-hop .62s ease-in-out infinite alternate;
+}
+
+.motion-quicante .custom-2-5d-shell {
+  animation: mascot-2-5d-bounce .42s cubic-bezier(.2,.9,.4,1.25) infinite alternate;
+}
+
+.motion-voador .custom-2-5d-shell,
+.motion-dragao .custom-2-5d-shell {
+  animation: mascot-2-5d-flight .72s ease-in-out infinite alternate;
+}
+
+.motion-eletrico .custom-2-5d-shell {
+  animation: mascot-2-5d-electric .24s steps(2) infinite alternate;
+}
+
+.motion-dragao .custom-2-5d-glow {
+  background:
+    radial-gradient(circle at 50% 60%, rgba(249,115,22,.30), transparent 58%),
+    radial-gradient(circle at 52% 42%, rgba(250,204,21,.18), transparent 48%);
+}
+
+.motion-eletrico .custom-2-5d-glow {
+  background:
+    radial-gradient(circle at 50% 60%, rgba(250,204,21,.38), transparent 58%),
+    radial-gradient(circle at 52% 42%, rgba(59,130,246,.18), transparent 48%);
+}
+
+/* Animações 2.5D */
+@keyframes mascot-2-5d-idle {
+  from {
+    transform: translateY(0) rotateX(0deg) rotateY(-4deg) scale(1);
+  }
+  to {
+    transform: translateY(-4px) rotateX(3deg) rotateY(5deg) scale(1.015);
+  }
+}
+
+@keyframes mascot-2-5d-hop {
+  from {
+    transform: translateY(1px) rotateX(5deg) rotateY(-8deg) scale(1.05, .95);
+  }
+  to {
+    transform: translateY(-12px) rotateX(-5deg) rotateY(8deg) scale(.98, 1.05);
+  }
+}
+
+@keyframes mascot-2-5d-bounce {
+  from {
+    transform: translateY(4px) rotateZ(-4deg) scale(1.10, .88);
+  }
+  to {
+    transform: translateY(-15px) rotateZ(5deg) scale(.94, 1.10);
+  }
+}
+
+@keyframes mascot-2-5d-flight {
+  from {
+    transform: translateY(0) rotateX(7deg) rotateY(-12deg) rotateZ(-3deg) scale(1);
+  }
+  to {
+    transform: translateY(-10px) rotateX(-4deg) rotateY(12deg) rotateZ(4deg) scale(1.025);
+  }
+}
+
+@keyframes mascot-2-5d-electric {
+  0% {
+    transform: translate(0, 0) rotateY(-10deg) scale(1);
+  }
+  50% {
+    transform: translate(3px, -7px) rotateY(10deg) scale(1.04);
+  }
+  100% {
+    transform: translate(-2px, 2px) rotateY(-6deg) scale(.98);
+  }
+}
+
+@keyframes mascot-2-5d-glow {
+  from {
+    opacity: .55;
+    transform: scale(.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1.08);
+  }
+}
+
+/* Sombra acompanha o movimento */
+.motion-saltador .custom-2-5d-ground-shadow,
+.motion-quicante .custom-2-5d-ground-shadow {
+  animation: mascot-shadow-squash .55s ease-in-out infinite alternate;
+}
+
+.motion-voador .custom-2-5d-ground-shadow,
+.motion-dragao .custom-2-5d-ground-shadow {
+  animation: mascot-shadow-flight .72s ease-in-out infinite alternate;
+}
+
+@keyframes mascot-shadow-squash {
+  from {
+    opacity: .58;
+    transform: translateY(28%) rotateX(68deg) scaleX(1.35);
+  }
+  to {
+    opacity: .26;
+    transform: translateY(38%) rotateX(68deg) scaleX(.82);
+  }
+}
+
+@keyframes mascot-shadow-flight {
+  from {
+    opacity: .26;
+    transform: translateY(36%) rotateX(68deg) scaleX(.82);
+  }
+  to {
+    opacity: .12;
+    transform: translateY(48%) rotateX(68deg) scaleX(.55);
+  }
+}
+
+/* Melhor integração do fogo/faísca com PNG 2.5D */
+.custom-mascot.motion-dragao .mascot-fire-breath {
+  z-index: 8;
+  right: -66px;
+  top: 37%;
+  width: 82px;
+  height: 28px;
+}
+
+.custom-mascot.motion-dragao.flip .mascot-fire-breath {
+  right: auto;
+  left: -66px;
+}
+
+.custom-mascot.motion-eletrico .mascot-spark-field {
+  z-index: 8;
+  inset: -14px;
+  border-width: 3px;
+}
+
+/* Gamer deixa o 2.5D mais evidente */
+.mascot-world.gamer .custom-2-5d-shell img {
+  filter:
+    drop-shadow(0 10px 7px rgba(0, 0, 0, .55))
+    drop-shadow(0 0 18px rgba(248, 113, 113, .42))
+    drop-shadow(0 0 28px rgba(250, 204, 21, .18));
+}
+
+.mascot-world.gamer .custom-2-5d-depth.depth-back {
+  opacity: .46;
+}
+
+.mascot-world.gamer .custom-2-5d-highlight {
+  opacity: .78;
+}
+
+@media (max-width: 980px) {
+  .custom-2-5d-shell {
+    inset: -4%;
+  }
+
+  .custom-2-5d-shell img {
+    transform:
+      translateZ(12px)
+      rotateX(4deg)
+      rotateY(-6deg);
+  }
+}
+
+@media (max-width: 680px) {
+  .mascot-world {
+    display: none;
+  }
+}
+
+
+/* Jogador1 Games - v5.1.1 */
+/* Manutenção de mascotes + remoção de fundo + Gerenciamento de Vendas ampliado */
+
+.dashboard-sales-management {
+  width: min(1560px, 100%) !important;
+  max-width: 100%;
+  margin: 18px auto 0;
+}
+
+.dashboard-sales-management .module-card {
+  padding: clamp(22px, 2.2vw, 32px);
+}
+
+.dashboard-sales-management .table-wrap {
+  width: 100%;
+  max-width: 100%;
+}
+
+@media (min-width: 1680px) {
+  .dashboard-sales-management {
+    width: min(1640px, 100%) !important;
+  }
+}
+
+@media (max-width: 1180px) {
+  .dashboard-sales-management {
+    width: 100% !important;
+  }
+
+  .dashboard-sales-management .module-card {
+    padding: 18px;
+  }
+}
+
+.mascot-form-grid {
+  grid-template-columns: 1.2fr repeat(4, minmax(130px, .8fr));
+}
+
+.mascot-form-grid .secondary-btn {
+  background: rgba(255,255,255,.08);
+  border: 1px solid rgba(255,255,255,.14);
+  color: #f4f4f5;
+}
+
+.mascot-check {
+  min-height: 44px;
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,.12);
+  background: rgba(255,255,255,.05);
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  padding: 0 12px;
+  font-weight: 800;
+  color: #f4f4f5;
+}
+
+.mascot-check input {
+  width: 18px;
+  height: 18px;
+  min-width: 18px;
+  accent-color: #ef4444;
+}
+
+.mascot-list-title {
+  margin: 20px 0 10px;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+}
+
+.mascot-list-title h4 {
+  margin: 0;
+  color: #fff;
+  font-size: 16px;
+}
+
+.mascot-list-title span {
+  color: #a1a1aa;
+  font-weight: 800;
+}
+
+.source-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 900;
+  border: 1px solid rgba(255,255,255,.12);
+}
+
+.source-pill.native {
+  background: rgba(250, 204, 21, .10);
+  color: #fde68a;
+  border-color: rgba(250, 204, 21, .22);
+}
+
+.source-pill.imported {
+  background: rgba(59, 130, 246, .10);
+  color: #bfdbfe;
+  border-color: rgba(59, 130, 246, .22);
+}
+
+.native-table-preview,
+.native-preview {
+  position: relative;
+  display: inline-block;
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  background: rgba(0,0,0,.35);
+  border: 1px solid rgba(255,255,255,.10);
+  overflow: hidden;
+  filter: drop-shadow(0 0 10px rgba(248,113,113,.22));
+}
+
+.native-preview {
+  width: 118px;
+  height: 118px;
+  border-radius: 24px;
+  background: radial-gradient(circle at 50% 55%, rgba(239,68,68,.14), rgba(0,0,0,.36));
+}
+
+.native-table-preview > i,
+.native-preview > i,
+.native-table-preview .native-runner-body,
+.native-preview .native-runner-body,
+.native-table-preview .native-orb-core,
+.native-preview .native-orb-core,
+.native-table-preview .native-dragon-body,
+.native-preview .native-dragon-body,
+.native-table-preview .native-cart-body,
+.native-preview .native-cart-body {
+  position: absolute;
+}
+
+.native-coin-body {
+  position: absolute;
+  inset: 8px;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 34% 28%, #fff7ad 0 12%, transparent 14%),
+    radial-gradient(circle, #facc15 0 48%, #ca8a04 52%, #713f12 100%);
+  border: 3px solid #fef08a;
+  box-shadow:
+    inset -6px -6px 0 rgba(0,0,0,.18),
+    0 0 18px rgba(250,204,21,.45);
+}
+
+.native-coin-shine {
+  position: absolute;
+  left: 34%;
+  top: 18%;
+  width: 12%;
+  height: 42%;
+  background: rgba(255,255,255,.58);
+  border-radius: 999px;
+  transform: rotate(18deg);
+}
+
+.native-star-body {
+  position: absolute;
+  inset: 5px;
+  background: linear-gradient(135deg, #fde047, #f59e0b);
+  clip-path: polygon(50% 0%, 61% 34%, 98% 35%, 68% 56%, 79% 91%, 50% 70%, 21% 91%, 32% 56%, 2% 35%, 39% 34%);
+  filter: drop-shadow(0 0 14px rgba(250,204,21,.46));
+}
+
+.native-star-shine {
+  position: absolute;
+  left: 34%;
+  top: 22%;
+  width: 16%;
+  height: 16%;
+  border-radius: 50%;
+  background: rgba(255,255,255,.75);
+}
+
+.mascot-actions .icon-btn {
+  min-width: 42px;
+}
+
+@media (max-width: 1180px) {
+  .mascot-form-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 720px) {
+  .mascot-form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .mascot-list-title {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .mascot-actions {
+    justify-content: flex-start;
+  }
+}
+
+
+/* Jogador1 Games - v5.1.2 */
+/* Edição de vendas concluídas */
+
+.sales-actions-cell {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  width: 100%;
+}
+
+.sales-actions-cell .icon-btn {
+  width: 36px;
+  min-width: 36px;
+  height: 36px;
+  padding: 0;
+}
+
+.sales-actions-cell .icon-btn:not(.danger) {
+  background: rgba(255,255,255,.08);
+  border: 1px solid rgba(255,255,255,.13);
+  color: #e5e7eb;
+}
+
+.sales-actions-cell .icon-btn:not(.danger):hover {
+  background: rgba(34,197,94,.16);
+  color: #86efac;
+  border-color: rgba(34,197,94,.32);
+}
+
+@media (max-width: 720px) {
+  .sales-actions-cell {
+    justify-content: flex-start;
   }
 }
