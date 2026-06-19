@@ -25,7 +25,7 @@ import {
   X,
 } from "lucide-react";
 
-const APP_VERSION = "4.0.2";
+const APP_VERSION = "4.0.3";
 const STORAGE_BUCKET = "produto-imagens";
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
@@ -1352,6 +1352,7 @@ function VersionModal({ onClose }) {
           <li>Correção dos cálculos mensais para vendas legadas sem data de venda.</li>
           <li>Sprites/mascotes próprios substituindo os emojis das animações.</li>
           <li>Animações mais visíveis nos modos Discreto e Gamer.</li>
+          <li>Camada dos sprites corrigida para ficarem visíveis sobre o fundo do sistema.</li>
         </ul>
       </div>
     </div>
